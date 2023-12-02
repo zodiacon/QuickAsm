@@ -41,7 +41,7 @@ MainFrame::MainFrame() {
 		if (m_FileName.IsEmpty())
 			DoSaveAs(e);
 		else {
-			m_AsmSource.SaveFile();
+			m_AsmSource.SaveFile(m_FileName);
 			m_AsmSource.SetModified(false);
 		}
 		}, wxID_SAVE);
@@ -75,7 +75,7 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	tb->AddSeparator();
 	wxArrayString assemblers{ L"Keystone", L"NASM", L"MASM" };
 	auto cbAsm = new wxComboBox(tb, wxID_ANY, wxEmptyString, wxDefaultPosition,
-		wxSize(100, -1), assemblers, wxCB_READONLY);
+		wxSize(80, -1), assemblers, wxCB_READONLY);
 	cbAsm->SetSelection(0);
 	cbAsm->Bind(wxEVT_COMBOBOX, [this](auto& e) {
 		m_AssemblerIndex = e.GetSelection();
@@ -196,10 +196,7 @@ void MainFrame::Assemble(const wxString& text) {
 	assembler->SetValue("address", std::wcstoll(m_AddressText->GetValue().ToStdWstring().c_str(), nullptr, 0));
 
 	AssemblerResults results;
-	if (m_FileName.IsEmpty())
-		results = assembler->Assemble(m_AsmSource.GetText().utf8_string());
-	else
-		results = assembler->AssembleFile(m_FileName.ToStdWstring());
+	results = assembler->Assemble(m_AsmSource.GetText().utf8_string());
 
 	if (results.Error) {
 		m_DisamSource.SetReadOnly(false);
