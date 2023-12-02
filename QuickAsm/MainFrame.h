@@ -25,5 +25,7 @@ private:
 	wxString m_FileName;
 	int m_AssemblerIndex{ 0 };
 	std::vector<std::unique_ptr<AssemblerBase>> m_Assemblers;
+	wxNotebook m_Notebook;
+	bool m_Modified{ false };
 };
 

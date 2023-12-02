@@ -13,6 +13,7 @@
 #include <wx/stc/stc.h>
 #include <wx/artprov.h>
 #include <wx/sysopt.h>
+#include <wx/notebook.h>
 
 #include <string>
 #include <string_view>

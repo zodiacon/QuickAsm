@@ -131,15 +131,13 @@ void AssemblyEditCtrl::OnEditClear(wxCommandEvent& WXUNUSED(event)) {
 }
 
 void AssemblyEditCtrl::OnEditCut(wxCommandEvent& WXUNUSED(event)) {
-	if (GetReadOnly() || (GetSelectionEnd() - GetSelectionStart() <= 0))
-		return;
-	Cut();
+	if (CanCut())
+		Cut();
 }
 
 void AssemblyEditCtrl::OnEditCopy(wxCommandEvent& WXUNUSED(event)) {
-	if (GetSelectionEnd() - GetSelectionStart() <= 0)
-		return;
-	Copy();
+	if (CanCopy())
+		Copy();
 }
 
 void AssemblyEditCtrl::OnEditPaste(wxCommandEvent& WXUNUSED(event)) {

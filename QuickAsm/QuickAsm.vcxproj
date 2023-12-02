@@ -126,6 +126,9 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(WXWIN)\lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <ResourceCompile>
+      <AdditionalIncludeDirectories>$(WXWIN)\include</AdditionalIncludeDirectories>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -148,6 +151,9 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(WXWIN)\lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <ResourceCompile>
+      <AdditionalIncludeDirectories>$(WXWIN)\include</AdditionalIncludeDirectories>
+    </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="AssemblerBase.h" />
@@ -158,6 +164,7 @@
     <ClInclude Include="MainFrame.h" />
     <ClInclude Include="NasmAssembler.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="App.h" />
   </ItemGroup>
@@ -188,7 +195,16 @@
     <Image Include="Icons\8.ico" />
     <Image Include="Icons\asm.ico" />
     <Image Include="Icons\AsmStudio.ico" />
+    <Image Include="Icons\binary.ico" />
     <Image Include="Icons\build.ico" />
+    <Image Include="Icons\copy.ico" />
+    <Image Include="Icons\cut.ico" />
+    <Image Include="Icons\open.ico" />
+    <Image Include="Icons\paste.ico" />
+    <Image Include="Icons\redo.ico" />
+    <Image Include="Icons\save.ico" />
+    <Image Include="Icons\save_as.ico" />
+    <Image Include="Icons\undo.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

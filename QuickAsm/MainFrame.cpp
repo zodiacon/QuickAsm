@@ -24,6 +24,7 @@ MainFrame::MainFrame() {
 		};
 
 	Bind(wxEVT_MENU, handler, wxID_EDIT, wxID_EDIT + 10);
+	Bind(wxEVT_MENU, handler, wxID_UNDO, wxID_REDO);
 	Bind(wxEVT_MENU, [this](auto& e) {
 		wxFileDialog dlg(this, L"Open Assembly file", wxEmptyString, wxEmptyString,
 		L"Assembly files (*.asm)|*.asm|All files (*.*)|*.*", wxFD_OPEN | wxFD_FILE_MUST_EXIST);
@@ -62,7 +63,7 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	Unbind(wxEVT_CREATE, &MainFrame::OnCreate, this);
 
 	wxArtProvider::Push(new LocalArtProvider);
-	SetIcon(wxICON(APP));
+	SetIcon(wxICON(0APP));
 
 	wxSystemOptions::SetOption("msw.remap", 2);
 	CreateMenu();
@@ -106,8 +107,18 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 		auto anyText = m_AsmSource.GetTextLength() > 0;
 		Enable(wxID_SAVEAS, anyText);
 		Enable(wxID_ASSEMBLE, anyText);
-		auto modified = m_AsmSource.GetModify();
+		auto modified = m_AsmSource.IsModified();
 		Enable(wxID_SAVE, modified);
+		if(modified != m_Modified) {
+			m_Modified = modified;
+			SetTitle(wxString::Format(L"QuickAsm - %s%s", m_FileName, modified ? L"*" : L""));
+		}
+		Enable(wxID_UNDO, m_AsmSource.CanUndo());
+		Enable(wxID_REDO, m_AsmSource.CanRedo());
+		Enable(wxID_COPY, m_AsmSource.CanCopy());
+		Enable(wxID_PASTE, m_AsmSource.CanPaste());
+		Enable(wxID_CLEAR, m_AsmSource.CanCut());
+		Enable(wxID_CUT, m_AsmSource.CanCut());
 		});
 
 	//
@@ -133,8 +144,7 @@ void MainFrame::DoSaveAs(wxCommandEvent&) {
 	if (dlg.ShowModal() == wxID_OK) {
 		m_AsmSource.SaveFile(dlg.GetPath());
 		m_FileName = dlg.GetPath();
-		m_AsmSource.SetSavePoint();
-		SetTitle(wxString::Format(L"QuickAsm - %s", m_FileName));
+		m_AsmSource.SetModified(false);
 	}
 }
 
