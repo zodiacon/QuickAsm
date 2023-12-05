@@ -22,6 +22,9 @@ wxBitmapBundle LocalArtProvider::CreateBitmapBundle(const wxArtID& id, const wxA
 		{ "8BIT", "8BIT" },
 		{ "ASMFILE", "ASMFILE" },
 		{ "ASMSTUDIO", "ASMSTUDIO" },
+        { "RUN", "RUN" },
+		{ "STOP", "STOP" },
+        { wxART_EDIT, "EDIT" },
     };
 
     for (auto& icon : iconsMap) {

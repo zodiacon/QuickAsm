@@ -40,6 +40,8 @@ std::vector<Instruction> CapstoneEngine::Disassemble(uint8_t const* code, size_t
 		memcpy(ins.Bytes.data(), insni.bytes, ins.Bytes.size());
 		ins.Mnemonic = insni.mnemonic;
 		ins.Operands = insni.op_str;
+		if (insni.detail)
+			ins.Details.reset(new cs_detail(*insni.detail));
 		inst.push_back(std::move(ins));
 	}
 	cs_free(insn, count);

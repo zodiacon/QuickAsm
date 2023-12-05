@@ -26,13 +26,16 @@ AssemblerResults NasmAssembler::AssembleFile(std::wstring const& file) {
 
 	auto modeValue = GetIntValue("mode");
 	std::string prefix;
+	int extraLines = 0;
 	if (modeValue) {
 		prefix = "bits " + std::to_string(*modeValue) + "\n";
+		extraLines++;
 	}
 
 	auto address = GetIntValue("address");
 	if (address) {
 		prefix += "org " + std::to_string(*address) + "\n";
+		extraLines++;
 	}
 
 	auto srcFile = file;
@@ -73,7 +76,18 @@ AssemblerResults NasmAssembler::AssembleFile(std::wstring const& file) {
 				auto colon = strchr(line + 2, ':');
 				if (colon == nullptr)
 					break;
-				results.Output += colon + 1;
+				if (extraLines) {
+					//
+					// subtract line number to align with actual assembly text
+					//
+					auto colon2 = strchr(colon + 1, ':');
+					auto lineNum = atoi(colon + 1);
+					lineNum -= extraLines;
+					results.Output += std::to_string(lineNum) + ":" + (colon2 + 1);
+				}
+				else {
+					results.Output += colon + 1;
+				}
 				results.Output += '\n';
 			}
 		}

@@ -14,6 +14,7 @@
 #include <wx/artprov.h>
 #include <wx/sysopt.h>
 #include <wx/notebook.h>
+#include <wx/listctrl.h>
 
 #include <string>
 #include <string_view>
@@ -24,3 +25,4 @@
 
 #include <keystone/keystone.h>
 #include <capstone/capstone.h>
+#include <unicorn/unicorn.h>

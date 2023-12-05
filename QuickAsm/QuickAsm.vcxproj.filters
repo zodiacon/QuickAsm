@@ -22,6 +22,9 @@
     <Filter Include="Helpers">
       <UniqueIdentifier>{fc3ea39a-7767-4f76-9944-26f6cb5b1965}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Disassemblers">
+      <UniqueIdentifier>{d0e62e76-1419-4712-ae1a-3061b788c939}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -57,6 +60,15 @@
     <ClInclude Include="resource.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
+    <ClInclude Include="CapstoneEngine.h">
+      <Filter>Disassemblers</Filter>
+    </ClInclude>
+    <ClInclude Include="UnicornEngine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RegisterInfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp">
@@ -85,6 +97,15 @@
     </ClCompile>
     <ClCompile Include="Helpers.cpp">
       <Filter>Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="CapstoneEngine.cpp">
+      <Filter>Disassemblers</Filter>
+    </ClCompile>
+    <ClCompile Include="UnicornEngine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RegisterInfo.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

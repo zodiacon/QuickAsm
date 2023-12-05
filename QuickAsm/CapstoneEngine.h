@@ -6,6 +6,7 @@ struct Instruction {
 	std::string Mnemonic;
 	std::string Operands;
 	unsigned Id;
+	std::unique_ptr<cs_detail> Details;
 };
 
 class CapstoneEngine final {
@@ -20,4 +21,5 @@ private:
 	csh m_CS{ 0 };
 	cs_err m_Error;
 };
+
 

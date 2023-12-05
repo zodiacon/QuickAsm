@@ -8,8 +8,8 @@ std::wstring Helpers::GetTempFilePath(PCWSTR name) {
     return path;
 }
 
-std::vector<BYTE> Helpers::ReadFileContents(std::wstring const& path) {
-    auto hFile = ::CreateFile(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
+std::vector<BYTE> Helpers::ReadFileContents(PCWSTR path) {
+    auto hFile = ::CreateFile(path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, 0, nullptr);
 	if (hFile == INVALID_HANDLE_VALUE)
 		return {};
 	
@@ -18,4 +18,55 @@ std::vector<BYTE> Helpers::ReadFileContents(std::wstring const& path) {
 	::ReadFile(hFile, buffer.data(), (DWORD)buffer.size(), &read, nullptr);
 	::CloseHandle(hFile);
 	return buffer;
+}
+
+PCWSTR Helpers::RegisterTypeToString(RegisterType type) {
+    static const struct {
+        RegisterType value;
+        PCWSTR text;
+    } types[] = {
+        { RegisterType::General, L"General" },
+        { RegisterType::Segment, L"Segment" },
+        { RegisterType::Index, L"Index" },
+        { RegisterType::Special, L"Special" },
+        { RegisterType::FloatingPoint, L"Float" },
+        { RegisterType::SSE, L"SSE" },
+        { RegisterType::Control, L"Control" },
+        { RegisterType::Descriptor, L"Descriptor" },
+    };
+
+    for (auto& t : types)
+        if ((t.value & type) == t.value)
+            return t.text;
+
+    return L"";
+}
+
+wxString Helpers::CPUFlagsToString(uint32_t value) {
+    static const struct {
+        int bit;
+        PCWSTR text;
+    } flags[] = {
+        { 0, L"CF" },
+        { 2, L"PF" },
+        { 4, L"AF" },
+        { 6, L"ZF" },
+        { 7, L"SF" },
+        { 10, L"DF" },
+        { 11, L"OF" },
+        { 14, L"NT" },
+        { 16, L"RF" },
+        { 17, L"VM" },
+        { 18, L"AC" },
+        { 19, L"VIF" },
+        { 20, L"VIP" },
+        { 21, L"ID" },
+    };
+    wxString text;
+    for (auto& f : flags)
+        if (value & (1 << f.bit))
+            text += wxString(f.text) + L"=1 ";
+
+    text += wxString(L"IOPL=") + std::to_wstring((value & (1 << 12) || (1 << 13)) >> 12).c_str();
+    return text;
 }
