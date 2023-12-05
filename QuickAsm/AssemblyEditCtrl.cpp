@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "AssemblyEditCtrl.h"
+#include <wx/fdrepdlg.h>
 
 static const char* KeyWords_ASM[] = {
 	"aaa aad aam aas adc add and arpl blsr bnd bndcl bndcn bndcu bndmov bndstx bound bsf bsr bswap bt btc btr bts call cbw cdq cflush clc cld cli clts "
@@ -143,4 +144,8 @@ void AssemblyEditCtrl::OnEditCopy(wxCommandEvent& WXUNUSED(event)) {
 void AssemblyEditCtrl::OnEditPaste(wxCommandEvent& WXUNUSED(event)) {
 	if (CanPaste())
 		Paste();
+}
+
+void AssemblyEditCtrl::OnFind(wxCommandEvent& event) {
+
 }

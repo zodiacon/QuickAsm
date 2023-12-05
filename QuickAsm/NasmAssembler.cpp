@@ -62,7 +62,7 @@ AssemblerResults NasmAssembler::AssembleFile(std::wstring const& file) {
 	objOutput = objOutput.substr(0, file.rfind(L'.')) + L".bin";
 
 	auto fullcmdline = m_NasmPath + L" -Z" + tempOutput + L" -o " + objOutput + L" " + srcFile;
-	if (::CreateProcess(nullptr, fullcmdline.data(), nullptr, nullptr, TRUE,
+	if (::CreateProcess(nullptr, fullcmdline.data(), nullptr, nullptr, FALSE,
 		CREATE_NO_WINDOW, nullptr, m_NasmDir.c_str(), &si, &pi)) {
 		::WaitForSingleObject(pi.hProcess, INFINITE);
 		std::ifstream stm(tempOutput);

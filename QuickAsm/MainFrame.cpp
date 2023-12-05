@@ -74,10 +74,10 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	tb->AddTool(wxID_OPEN, L"Open", wxArtProvider::GetIcon(wxART_FILE_OPEN, wxART_TOOLBAR, size));
 	tb->AddTool(wxID_SAVE, wxEmptyString, wxArtProvider::GetIcon(wxART_FILE_SAVE, wxART_TOOLBAR, size));
 	tb->AddSeparator();
-	wxArrayString assemblers{ L"Keystone", L"NASM", L"MASM" };
+	wxArrayString assemblers{ L"Keystone", L"NASM", /*L"MASM" */ };
 	auto cbAsm = new wxComboBox(tb, wxID_ANY, wxEmptyString, wxDefaultPosition,
 		wxSize(80, -1), assemblers, wxCB_READONLY);
-	cbAsm->SetSelection(0);
+	cbAsm->SetSelection(1);
 	cbAsm->Bind(wxEVT_COMBOBOX, [this](auto& e) {
 		m_AssemblerIndex = e.GetSelection();
 		});
@@ -111,7 +111,8 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 		Enable(wxID_SAVE, modified);
 		if(modified != m_Modified) {
 			m_Modified = modified;
-			SetTitle(wxString::Format(L"QuickAsm - %s%s", m_FileName, modified ? L"*" : L""));
+			if(!m_FileName.IsEmpty())
+				SetTitle(wxString::Format(L"QuickAsm - %s%s", m_FileName, modified ? L"*" : L""));
 		}
 		Enable(wxID_UNDO, m_AsmSource.CanUndo());
 		Enable(wxID_REDO, m_AsmSource.CanRedo());
@@ -181,7 +182,6 @@ void MainFrame::CreateMenu() {
 	menuEdit->Append(wxID_CLEAR, _("&Delete\tDel"));
 	menuEdit->AppendSeparator();
 	menuEdit->Append(wxID_FIND, _("&Find\tCtrl+F"));
-	menuEdit->Enable(wxID_FIND, false);
 
 	auto asmMenu = new wxMenu;
 	item = asmMenu->Append(wxID_ASSEMBLE, _("&Assemble\tF7"));

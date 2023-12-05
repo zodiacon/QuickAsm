@@ -23,7 +23,7 @@ private:
 	wxMenuBar* m_MenuBar;
 	int m_AsmModeIndex{ 1 };
 	wxString m_FileName;
-	int m_AssemblerIndex{ 0 };
+	int m_AssemblerIndex{ 1 };
 	std::vector<std::unique_ptr<AssemblerBase>> m_Assemblers;
 	wxNotebook m_Notebook;
 	bool m_Modified{ false };
