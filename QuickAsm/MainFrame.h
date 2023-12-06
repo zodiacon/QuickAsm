@@ -25,6 +25,7 @@ private:
 	void Debug(wxCommandEvent& e);
 	void UpdateEmulatorState();
 	void SetRegisterValue(int row, RegisterInfo const& reg);
+	void DoSortRegisters(int col, bool asc);
 
 	enum class EmulatorState {
 		Idle,

@@ -138,7 +138,7 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 		Enable(wxID_REDO, m_AsmSource.CanRedo());
 		Enable(wxID_COPY, m_AsmSource.CanCopy());
 		Enable(wxID_PASTE, m_AsmSource.CanPaste());
-		Enable(wxID_CLEAR, m_AsmSource.CanCut());
+		Enable(wxID_CLEAR, !m_AsmSource.GetReadOnly());
 		Enable(wxID_CUT, m_AsmSource.CanCut());
 		});
 
@@ -188,6 +188,12 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	m_RegistersList.InsertColumn(3, L"Type", wxLIST_FORMAT_LEFT);
 	m_RegistersList.InsertColumn(4, L"Details", wxLIST_FORMAT_LEFT, 200);
 
+	m_RegistersList.Bind(wxEVT_LIST_COL_CLICK, [this](auto& e) { 
+		auto col = e.GetColumn();
+		auto asc = m_RegistersList.GetUpdatedAscendingSortIndicator(col);
+		DoSortRegisters(col, asc);
+		});
+
 	Bind(wxEVT_MENU, [this](auto& e) {
 		if (e.IsChecked())
 			m_RegViewFilter |= 1 << (e.GetId() - wxID_8BITREG);
@@ -225,6 +231,7 @@ void MainFrame::ShowRegisters() {
 		}
 		i++;
 	}
+	DoSortRegisters(m_RegistersList.GetSortIndicator(), m_RegistersList.IsAscendingSortIndicator());
 }
 
 void MainFrame::Run(wxCommandEvent& e) {
@@ -251,6 +258,35 @@ void MainFrame::SetRegisterValue(int i, RegisterInfo const& ri) {
 		auto value = m_Emulator.ReadReg<uc_x86_mmr>(ri.Id);
 		m_RegistersList.SetItem(i, 2, wxString::Format(L"0x%X:%llX", value.limit, value.base));
 	}
+}
+
+void MainFrame::DoSortRegisters(int col, bool asc) {
+	if (col < 0)
+		return;
+
+	struct Data {
+		int Col;
+		bool Asc;
+		bool Sorted{ true };
+	} args{ col, asc };
+	m_RegistersList.SortItems([](auto i1, auto i2, auto p) {
+		auto args = (Data*)p;
+		auto& r1 = AllRegisters[i1];
+		auto& r2 = AllRegisters[i2];
+		int r = 0;
+		switch (args->Col) {
+			case 0: r = strcmp(r1.Name.c_str(), r2.Name.c_str()); break;
+			case 1: r = r1.Size - r2.Size; break;
+			case 3: r = _wcsicmp(Helpers::RegisterTypeToString(r1.Category), Helpers::RegisterTypeToString(r2.Category)); break;
+			default: args->Sorted = false; break;
+		}
+		if(!args->Asc)
+			r = -r;
+		return r;
+		}, (wxIntPtr)&args);
+	if(args.Sorted)
+		m_RegistersList.ShowSortIndicator(col, asc);
+
 }
 
 
