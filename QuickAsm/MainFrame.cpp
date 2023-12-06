@@ -88,7 +88,9 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	tb->AddTool(wxID_OPEN, L"Open", wxArtProvider::GetIcon(wxART_FILE_OPEN, wxART_TOOLBAR, size));
 	tb->AddTool(wxID_SAVE, wxEmptyString, wxArtProvider::GetIcon(wxART_FILE_SAVE, wxART_TOOLBAR, size));
 	tb->AddSeparator();
-	wxArrayString assemblers{ L"Keystone", L"NASM", /*L"MASM" */ };
+	wxArrayString assemblers;
+	assemblers.Add(L"Keystone");
+	assemblers.Add(L"NASM");
 	auto cbAsm = new wxComboBox(tb, wxID_ANY, wxEmptyString, wxDefaultPosition,
 		wxSize(80, -1), assemblers, wxCB_READONLY);
 	cbAsm->SetSelection(1);
@@ -381,6 +383,8 @@ void MainFrame::Assemble(const wxString& text) {
 	else {
 		if (results.Bytes.empty())
 			m_AsmBytes = Helpers::ReadFileContents(results.OutputFile.c_str());
+		else
+			m_AsmBytes = std::move(results.Bytes);
 		Disassemble(m_AsmBytes);
 	}
 }

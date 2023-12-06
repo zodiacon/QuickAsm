@@ -1,5 +1,4 @@
 #pragma once
-#include "../../Github/wxWidgets/include/wx/event.h"
 
 class AssemblyEditCtrl : public wxStyledTextCtrl {
 public:
