@@ -237,7 +237,7 @@ void MainFrame::UpdateEmulatorState() {
 	for(int i = 0; i < m_RegistersList.GetItemCount(); i++) {
 		auto index = m_RegistersList.GetItemData(i);
 		auto& ri = AllRegisters[index];
-		SetRegisterValue(index, ri);
+		SetRegisterValue(i, ri);
 	}
 }
 
