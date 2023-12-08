@@ -170,8 +170,15 @@
     <ClInclude Include="targetver.h" />
     <ClInclude Include="App.h" />
     <ClInclude Include="UnicornEngine.h" />
+    <ClInclude Include="wxHexView.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\common\Trace.c">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="AssemblerBase.cpp" />
     <ClCompile Include="AssemblyEditCtrl.cpp" />
     <ClCompile Include="CapstoneEngine.cpp" />
@@ -189,6 +196,7 @@
     <ClCompile Include="App.cpp" />
     <ClCompile Include="RegisterInfo.cpp" />
     <ClCompile Include="UnicornEngine.cpp" />
+    <ClCompile Include="wxHexView.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="wxWidgetsApp.rc" />
@@ -211,6 +219,11 @@
     <Image Include="Icons\save.ico" />
     <Image Include="Icons\save_as.ico" />
     <Image Include="Icons\undo.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\HexView\HexView.vcxproj">
+      <Project>{3fba3178-4ae6-4103-9eb2-542901d978b7}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

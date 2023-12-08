@@ -5,6 +5,9 @@
 #include "NasmAssembler.h"
 #include "Helpers.h"
 #include "RegisterInfo.h"
+#include "..\HexView\HexView.h"
+#include <wx/nativewin.h>
+#include "wxHexView.h"
 
 enum {
 	wxID_ASSEMBLE = wxID_HIGHEST + 1,
@@ -19,6 +22,7 @@ enum {
 };
 
 MainFrame::MainFrame() {
+	m_Memory.resize(1 << 16);
 	Bind(wxEVT_CREATE, &MainFrame::OnCreate, this);
 	Bind(wxEVT_MENU, &MainFrame::OnExit, this, wxID_EXIT);
 
@@ -73,13 +77,25 @@ MainFrame::MainFrame() {
 	m_Assemblers.push_back(std::make_unique<NasmAssembler>());
 }
 
+LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
+	switch (static_cast<EmulatorMessage>(msg)) {
+		case EmulatorMessage::RunComplete:
+			m_EmulatorState = EmulatorState::Idle;
+			m_Emulator.Stop();
+			Enable(wxID_RUN, true);
+			Enable(wxID_STOP, false);
+			UpdateEmulatorState();
+			break;
+	}
+	return wxFrame::MSWWindowProc(msg, wParam, lParam);
+}
+
 void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	Unbind(wxEVT_CREATE, &MainFrame::OnCreate, this);
 
 	wxArtProvider::Push(new LocalArtProvider);
 	SetIcon(wxICON(0APP));
 
-	wxSystemOptions::SetOption("msw.remap", 2);
 	CreateMenu();
 	CreateStatusBar(2);
 
@@ -190,7 +206,7 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	m_RegistersList.InsertColumn(3, L"Type", wxLIST_FORMAT_LEFT);
 	m_RegistersList.InsertColumn(4, L"Details", wxLIST_FORMAT_LEFT, 200);
 
-	m_RegistersList.Bind(wxEVT_LIST_COL_CLICK, [this](auto& e) { 
+	m_RegistersList.Bind(wxEVT_LIST_COL_CLICK, [this](auto& e) {
 		auto col = e.GetColumn();
 		auto asc = m_RegistersList.GetUpdatedAscendingSortIndicator(col);
 		DoSortRegisters(col, asc);
@@ -206,9 +222,17 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 
 	m_Notebook->AddPage(frame, L"Registers", true, 0);
 
-	m_Notebook->AddPage(new wxPanel(m_Notebook), L"Memory", false, 1);
+	auto hWnd = CreateHexView(m_Notebook->GetHWND());
+	m_MemoryView = new wxNativeWindow(m_Notebook, wxID_ANY, hWnd);
+	auto hFont = ::CreateFont(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+		CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Consolas");
+	HexView_SetFont(hWnd, hFont);
+	HexView_InitBufShared(hWnd, m_Memory.data(), (ULONG)m_Memory.size());
+	//sizer = new wxBoxSizer(wxVERTICAL);
+	//sizer->Add(m_MemoryView, 1, wxEXPAND);
+	//memPanel->SetSizer(sizer);
+	m_Notebook->AddPage(m_MemoryView, L"Memory", false, 1);
 	m_Notebook->AddPage(new wxPanel(m_Notebook), L"Breakpoints", false, 2);
-
 }
 
 void MainFrame::Enable(int id, bool enable) {
@@ -236,16 +260,27 @@ void MainFrame::ShowRegisters() {
 	DoSortRegisters(m_RegistersList.GetSortIndicator(), m_RegistersList.IsAscendingSortIndicator());
 }
 
+void MainFrame::RunOnThreadPool() {
+	auto ok = m_Emulator.Start(m_Instructions[0].Address, m_Instructions[0].Address + m_AsmBytes.size());
+	assert(ok);
+	::PostMessage(this->GetHandle(), UINT(EmulatorMessage::RunComplete), 0, 0);
+}
+
 void MainFrame::Run(wxCommandEvent& e) {
 	assert(m_Emulator.IsOpen());
-	m_Emulator.Start(m_Instructions[0].Address, m_Instructions[0].Address + m_AsmBytes.size());
-	UpdateEmulatorState();
+	Enable(wxID_STOP, true);
+	Enable(wxID_RUN, false);
+	m_EmulatorState = EmulatorState::Running;
+	::TrySubmitThreadpoolCallback([](auto, auto p) {
+		((MainFrame*)p)->RunOnThreadPool();
+		}, this, nullptr);
 }
 
 void MainFrame::UpdateEmulatorState() {
-	for(int i = 0; i < m_RegistersList.GetItemCount(); i++) {
+	for (int i = 0; i < m_RegistersList.GetItemCount(); i++) {
 		auto index = m_RegistersList.GetItemData(i);
 		auto& ri = AllRegisters[index];
+		//auto oldValue = wcstoull(m_RegistersList.GetItemText(i, 2).ToStdWstring().c_str(), nullptr, 0);
 		SetRegisterValue(i, ri);
 	}
 }
@@ -260,6 +295,7 @@ void MainFrame::SetRegisterValue(int i, RegisterInfo const& ri) {
 		auto value = m_Emulator.ReadReg<uc_x86_mmr>(ri.Id);
 		m_RegistersList.SetItem(i, 2, wxString::Format(L"0x%X:%llX", value.limit, value.base));
 	}
+	m_RegistersList.RefreshItems(0, 10);
 }
 
 void MainFrame::DoSortRegisters(int col, bool asc) {
@@ -282,11 +318,11 @@ void MainFrame::DoSortRegisters(int col, bool asc) {
 			case 3: r = _wcsicmp(Helpers::RegisterTypeToString(r1.Category), Helpers::RegisterTypeToString(r2.Category)); break;
 			default: args->Sorted = false; break;
 		}
-		if(!args->Asc)
+		if (!args->Asc)
 			r = -r;
 		return r;
 		}, (wxIntPtr)&args);
-	if(args.Sorted)
+	if (args.Sorted)
 		m_RegistersList.ShowSortIndicator(col, asc);
 
 }
@@ -408,9 +444,12 @@ void MainFrame::Disassemble(uint8_t const* data, size_t size) {
 		if (!m_Instructions.empty()) {
 			Enable(wxID_RUN, true);
 			m_Emulator.Open(CpuArch::x86, (CpuMode)mode);
-			m_Emulator.MapMemory(0, 1 << 20, MemProtection::All);
+			m_Emulator.MapHostMemory(0, m_Memory.size(), MemProtection::All, m_Memory.data());
 			m_Emulator.WriteMemory(m_Instructions[0].Address, data, size);
+			m_MemoryView->Refresh();
+			HexView_ScrollTop(m_MemoryView->GetHWND(), m_Instructions[0].Address);
 			ShowRegisters();
+			
 		}
 	}
 }

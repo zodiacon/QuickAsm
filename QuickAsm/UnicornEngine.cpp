@@ -64,6 +64,7 @@ bool UnicornEngine::ProtectMemory(uint64_t address, uint64_t size, MemProtection
 
 bool UnicornEngine::WriteMemory(uint64_t address, const void* data, uint64_t size) {
     m_LastError = uc_mem_write(m_UC, address, data, size);
+    assert(m_LastError == UC_ERR_OK);
     return m_LastError == UC_ERR_OK;
 }
 

@@ -93,6 +93,7 @@ AssemblyEditCtrl::AssemblyEditCtrl() {
 }
 
 void AssemblyEditCtrl::Init() {
+	SetTabWidth(4);
 	SetMarginType(0, wxSTC_MARGIN_NUMBER);
 	SetMarginWidth(0, 25);
 	SetLexer(wxSTC_LEX_ASM);
