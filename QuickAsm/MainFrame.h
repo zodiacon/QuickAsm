@@ -48,7 +48,7 @@ private:
 	AssemblyEditCtrl m_AsmSource, m_DisamSource;
 	wxTextCtrl* m_AddressText;
 	wxMenuBar* m_MenuBar;
-	wxNativeWindow* m_MemoryView;
+	wxHexView* m_MemoryView;
 	int m_AsmModeIndex{ 1 };
 	wxString m_FileName;
 	int m_AssemblerIndex{ 1 };

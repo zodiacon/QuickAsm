@@ -222,12 +222,10 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 
 	m_Notebook->AddPage(frame, L"Registers", true, 0);
 
-	auto hWnd = CreateHexView(m_Notebook->GetHWND());
-	m_MemoryView = new wxNativeWindow(m_Notebook, wxID_ANY, hWnd);
-	auto hFont = ::CreateFont(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
-		CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Consolas");
-	HexView_SetFont(hWnd, hFont);
-	HexView_InitBufShared(hWnd, m_Memory.data(), (ULONG)m_Memory.size());
+	m_MemoryView = new wxHexView(m_Notebook);
+	auto font = new wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"Consolas");
+	m_MemoryView->SetFont(*font);
+	m_MemoryView->InitSharedBuffer(m_Memory.data(), (ULONG)m_Memory.size());
 	//sizer = new wxBoxSizer(wxVERTICAL);
 	//sizer->Add(m_MemoryView, 1, wxEXPAND);
 	//memPanel->SetSizer(sizer);
@@ -447,7 +445,8 @@ void MainFrame::Disassemble(uint8_t const* data, size_t size) {
 			m_Emulator.MapHostMemory(0, m_Memory.size(), MemProtection::All, m_Memory.data());
 			m_Emulator.WriteMemory(m_Instructions[0].Address, data, size);
 			m_MemoryView->Refresh();
-			HexView_ScrollTop(m_MemoryView->GetHWND(), m_Instructions[0].Address);
+			m_MemoryView->ScrollTop(m_Instructions[0].Address);
+
 			ShowRegisters();
 			
 		}

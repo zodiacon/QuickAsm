@@ -462,7 +462,7 @@ typedef struct _NMHVBOOKMARK
 	(UINT)SNDMSG((hwnd), HVM_DELBOOKMARK, (WPARAM)(HBOOKMARK)(param), 0)
 
 /**
- * Specify a sequence of bytes that will have its every occurance
+ * Specify a sequence of bytes that will have its every occurrence
  * highlighted in the current file
  *
  * @param
