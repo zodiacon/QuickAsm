@@ -7,7 +7,8 @@
 #include "RegisterInfo.h"
 #include "wxHexView.h"
 #include "HexViewPanel.h"
-
+#include <wx/config.h>
+#include "App.h"
 
 enum {
 	wxID_ASSEMBLE = wxID_HIGHEST + 1,
@@ -19,6 +20,7 @@ enum {
 	wxID_32BITREG,
 	wxID_64BITREG,
 	wxID_RUN,
+	wxID_DARKTHEME,
 };
 
 MainFrame::MainFrame() {
@@ -75,6 +77,14 @@ MainFrame::MainFrame() {
 		if (!m_AsmBytes.empty())
 			Disassemble(m_AsmBytes);
 		}, wxID_16BIT, wxID_64BIT);
+
+	Bind(wxEVT_MENU, [this](auto& e) {
+		auto selected = e.IsChecked();
+		if (selected) {
+			auto config = wxConfig::Get();
+			config->Write(L"DarkMode", e.GetId() - wxID_DARKTHEME);
+		}
+		}, wxID_DARKTHEME, wxID_DARKTHEME + 2);
 
 	m_Assemblers.push_back(std::make_unique<KeystoneAssembler>());
 	m_Assemblers.push_back(std::make_unique<NasmAssembler>());
@@ -414,10 +424,21 @@ void MainFrame::CreateMenu() {
 	item->Enable(false);
 	item->SetBitmap(wxArtProvider::GetIcon(L"STOP", wxART_MENU, size));
 
+	auto options = new wxMenu;
+	auto dark = wxSystemSettings::GetAppearance().IsDark();
+	auto darkMenu = new wxMenu;
+	darkMenu->Append(wxID_DARKTHEME, L"Dark Theme", wxEmptyString, wxITEM_RADIO);
+	darkMenu->Append(wxID_DARKTHEME + 1, L"Light Theme", wxEmptyString, wxITEM_RADIO);
+	darkMenu->Append(wxID_DARKTHEME + 2, L"Same as System", wxEmptyString, wxITEM_RADIO);
+	auto value = wxConfig::Get()->ReadLong(L"DarkMode", 1);
+	darkMenu->Check(wxID_DARKTHEME + value, true);
+	options->AppendSubMenu(darkMenu, L"Theme");
+
 	m_MenuBar = new wxMenuBar;
 	m_MenuBar->Append(menuFile, L"&File");
 	m_MenuBar->Append(menuEdit, L"&Edit");
 	m_MenuBar->Append(asmMenu, L"&Assembly");
+	m_MenuBar->Append(options, L"&Options");
 
 	SetMenuBar(m_MenuBar);
 }
@@ -489,7 +510,7 @@ bool MainFrame::OnHexViewNotify(wxHexView* pHexView, int idCtrl, LPNMHDR hdr, WX
 			Enable(wxID_UNDO, pHexView->CanUndo());
 			Enable(wxID_REDO, pHexView->CanRedo());
 			Enable(wxID_CUT, pHexView->CanDelete());
-			Enable(wxID_DELETE, pHexView->CanDelete());
+			Enable(wxID_CLEAR, pHexView->CanDelete());
 			Enable(wxID_PASTE, pHexView->CanPaste());
 			m_HexViewActive = true;
 			return true;
