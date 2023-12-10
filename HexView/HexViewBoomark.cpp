@@ -50,7 +50,7 @@ BOOL HexView::GetHighlightCol(size_w offset, int pane, BOOKNODE *itemStart,
 	int nSchemeIdxBG;
 
 	BOOL fGotFocus = GetFocus() == m_hWnd ? TRUE : FALSE;
-	fGotFocus = GetAncestor(GetForegroundWindow(), GA_ROOTOWNER) == GetParent(m_hWnd);
+//	fGotFocus = fGotFocus && GetAncestor(GetForegroundWindow(), GA_ROOTOWNER) == GetParent(m_hWnd);
 	
 	fGotFocus = fGotFocus && IsWindowEnabled(GetParent(m_hWnd));
 

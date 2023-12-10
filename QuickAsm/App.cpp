@@ -7,6 +7,7 @@ wxIMPLEMENT_APP(App);
 bool App::OnInit() {
 	::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 	wxSystemOptions::SetOption("msw.remap", 0);
+	MSWEnableDarkMode(DarkMode_Auto);
 
 	auto frame = new MainFrame;
 	frame->Create(nullptr, wxID_ANY, L"Quick Assembler");

@@ -3,24 +3,13 @@
 #include "AssemblyEditCtrl.h"
 #include "CapstoneEngine.h"
 #include "UnicornEngine.h"
+#include "HexViewPanel.h"
 
 class AssemblerBase;
 struct RegisterInfo;
 class wxHexView;
 
-class HexViewPanel : public wxPanel {
-public:
-	HexViewPanel(wxWindow* parent);
-	bool MSWOnNotify(int idCtrl, WXLPARAM lParam, WXLPARAM* result) override;
-	LRESULT MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) override;
-
-	void SetHexView(wxHexView* pHexView);
-
-private:
-	wxHexView* m_pHexView{ nullptr };
-};
-
-class MainFrame : public wxFrame {
+class MainFrame : public wxFrame, public IHexViewNotify {
 public:
 	MainFrame();
 
@@ -42,6 +31,7 @@ private:
 	void SetRegisterValue(int row, RegisterInfo const& reg);
 	void DoSortRegisters(int col, bool asc);
 	void RunOnThreadPool();
+	bool OnHexViewNotify(wxHexView* pHexView, int idCtrl, LPNMHDR hdr, WXLPARAM* result) override;
 
 	enum class EmulatorState {
 		Idle,
@@ -73,5 +63,6 @@ private:
 	void* m_EmulatorContext{ nullptr };
 	std::vector<uint8_t> m_Memory;
 	bool m_Modified{ false };
+	bool m_HexViewActive{ false };
 };
 

@@ -160,6 +160,7 @@
     <ClInclude Include="AssemblyEditCtrl.h" />
     <ClInclude Include="CapstoneEngine.h" />
     <ClInclude Include="Helpers.h" />
+    <ClInclude Include="HexViewPanel.h" />
     <ClInclude Include="KeystoneAssembler.h" />
     <ClInclude Include="LocalArtProvider.h" />
     <ClInclude Include="MainFrame.h" />
@@ -183,6 +184,7 @@
     <ClCompile Include="AssemblyEditCtrl.cpp" />
     <ClCompile Include="CapstoneEngine.cpp" />
     <ClCompile Include="Helpers.cpp" />
+    <ClCompile Include="HexViewPanel.cpp" />
     <ClCompile Include="KeystoneAssembler.cpp" />
     <ClCompile Include="LocalArtProvider.cpp" />
     <ClCompile Include="MainFrame.cpp" />

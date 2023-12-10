@@ -101,16 +101,18 @@ void AssemblyEditCtrl::Init() {
 	StyleSetFont(wxSTC_STYLE_DEFAULT, font);
 
 	StyleClearAll();
-	StyleSetForeground(wxSTC_ASM_DEFAULT, "BLACK");
-	StyleSetForeground(wxSTC_ASM_DIRECTIVE, "BROWN");
-	StyleSetForeground(wxSTC_ASM_NUMBER, "PURPLE");
-	StyleSetForeground(wxSTC_ASM_REGISTER, "BLACK");
+	auto dark = wxSystemSettingsNative::GetAppearance().IsDark();
+
+	StyleSetForeground(wxSTC_ASM_DEFAULT, dark ? "WHITE" : "BLACK");
+	StyleSetForeground(wxSTC_ASM_DIRECTIVE, dark ? "ORANGE" : "BROWN");
+	StyleSetForeground(wxSTC_ASM_NUMBER, dark ? "CYAN" : "PURPLE");
+	StyleSetForeground(wxSTC_ASM_REGISTER, dark ? "WHITE" : "BLACK");
 	StyleSetBold(wxSTC_ASM_REGISTER, true);
 	StyleSetForeground(wxSTC_ASM_STRING, "#800000");
-	StyleSetForeground(wxSTC_ASM_COMMENT, "#008000");
-	StyleSetForeground(wxSTC_ASM_CPUINSTRUCTION, "BLUE");
+	StyleSetForeground(wxSTC_ASM_COMMENT, dark ? "GREEN" : "#008000");
+	StyleSetForeground(wxSTC_ASM_CPUINSTRUCTION, dark ? "YELLOW" : "BLUE");
 	StyleSetBold(wxSTC_ASM_CPUINSTRUCTION, true);
-	StyleSetForeground(wxSTC_ASM_MATHINSTRUCTION, "BLUE");
+	StyleSetForeground(wxSTC_ASM_MATHINSTRUCTION, dark ? "YELLOW" : "BLUE");
 
 	for (int i = 0; i < _countof(KeyWords_ASM); i++)
 		SetKeyWords(i, KeyWords_ASM[i]);

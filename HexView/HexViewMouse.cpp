@@ -581,6 +581,7 @@ BOOL HexView::EditBookmark(BOOKNODE *bptr, RECT *hir, bool fEditTitle)
 
 LRESULT HexView::OnLButtonDown(UINT nFlags, int x, int y)
 {
+	::SetFocus(m_hWnd);
 	RECT hir;
 
 	UINT ht = HitTest(x, y, &hir, &m_HighlightCurrent);

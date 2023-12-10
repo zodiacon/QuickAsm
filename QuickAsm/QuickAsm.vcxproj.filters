@@ -72,6 +72,9 @@
     <ClInclude Include="wxHexView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="HexViewPanel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp">
@@ -114,6 +117,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\common\Trace.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="HexViewPanel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

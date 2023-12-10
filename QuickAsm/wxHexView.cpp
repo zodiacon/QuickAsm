@@ -136,6 +136,22 @@ void wxHexView::SetContextMenu(wxMenu* menu) {
     HexView_SetContextMenu(m_hWnd, menu->GetHMenu());
 }
 
+void wxHexView::SetFocus() {
+    ::SetFocus(m_hWnd);
+}
+
+bool wxHexView::ProcessCommand(wxCommandEvent& evt) {
+    switch (evt.GetId()) {
+        case wxID_UNDO: return Undo();
+        case wxID_REDO: return Redo();
+        case wxID_COPY: return Copy();
+        case wxID_CUT: return Cut();
+        case wxID_PASTE: return Paste();
+        case wxID_DELETE: return Delete();
+    }
+    return false;
+}
+
 bool wxHexView::Copy() const {
     return HexView_Copy(m_hWnd);
 }

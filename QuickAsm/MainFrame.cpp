@@ -5,9 +5,9 @@
 #include "NasmAssembler.h"
 #include "Helpers.h"
 #include "RegisterInfo.h"
-#include "..\HexView\HexView.h"
-#include <wx/nativewin.h>
 #include "wxHexView.h"
+#include "HexViewPanel.h"
+
 
 enum {
 	wxID_ASSEMBLE = wxID_HIGHEST + 1,
@@ -28,8 +28,11 @@ MainFrame::MainFrame() {
 
 	auto handler = [this](auto& e) {
 		auto focus = FindFocus();
-		if (focus) {
+		if (focus == &m_AsmSource) {
 			focus->GetEventHandler()->ProcessEventLocally(e);
+		}
+		else if (m_HexViewActive) {
+			m_MemoryView->ProcessCommand(e);
 		}
 		};
 
@@ -143,6 +146,7 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	m_AsmSource.Create(&m_Splitter, wxID_ANY);
 	m_AsmSource.Init();
 	m_AsmSource.Bind(wxEVT_STC_UPDATEUI, [this](auto& e) {
+		m_HexViewActive = false;
 		auto anyText = m_AsmSource.GetTextLength() > 0;
 		Enable(wxID_SAVEAS, anyText);
 		Enable(wxID_ASSEMBLE, anyText);
@@ -224,8 +228,21 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 
 	m_Notebook->AddPage(frame, L"Registers", true, 0);
 
-	auto panel = new HexViewPanel(m_Notebook);
+	auto panel = new HexViewPanel(m_Notebook, this);
 	m_MemoryView = new wxHexView(panel);
+	auto dark = wxSystemSettings::GetAppearance().IsDark();
+	if (dark) {
+		m_MemoryView->SetColor(ColorType::Background, 0x0E0E0E);
+		m_MemoryView->SetColor(ColorType::Hexodd, 0xF0F0F0);
+		m_MemoryView->SetColor(ColorType::Hexeven, 0xF0F0F0);
+		m_MemoryView->SetColor(ColorType::Address, 0xF0F0F0);
+		m_MemoryView->SetColor(ColorType::Ascii, 0xF0F0F0);
+		//m_MemoryView->SetColor(ColorType::Hexoddsel, "BLUE");
+		//m_MemoryView->SetColor(ColorType::Hexevensel, "BLUE");
+		//m_MemoryView->SetColor(ColorType::Selection, "BLUE");
+	}
+	//m_MemoryView->SetColor(ColorType::Modify, "RED");
+	//m_MemoryView->SetColor(ColorType::Selection, "BLUE");
 	panel->SetHexView(m_MemoryView);
 
 	auto font = new wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"Consolas");
@@ -235,7 +252,7 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	sizer = new wxBoxSizer(wxVERTICAL);
 	sizer->Add(m_MemoryView, 1, wxEXPAND);
 	panel->SetSizer(sizer);
-	m_Notebook->AddPage(panel, L"Memory", false, 1);
+	m_Notebook->AddPage(panel, L"Memory", true, 1);
 
 	m_Notebook->AddPage(new wxPanel(m_Notebook), L"Breakpoints", false, 2);
 }
@@ -464,32 +481,18 @@ void MainFrame::Disassemble(uint8_t const* data, size_t size) {
 	}
 }
 
-HexViewPanel::HexViewPanel(wxWindow* parent) : wxPanel(parent) {
-}
-
-bool HexViewPanel::MSWOnNotify(int idCtrl, WXLPARAM lParam, WXLPARAM* result) {
-	auto hdr = (LPNMHDR)lParam;
-	if (hdr->hwndFrom == m_pHexView->GetHWND()) {
-		switch (hdr->code) {
-			case HVN_CURSOR_CHANGE:
-				return true;
-		}
+bool MainFrame::OnHexViewNotify(wxHexView* pHexView, int idCtrl, LPNMHDR hdr, WXLPARAM* result) {
+	switch (hdr->code) {
+		case HVN_CHANGED:
+		case HVN_SELECTION_CHANGE:
+			Enable(wxID_COPY, pHexView->CanCopy());
+			Enable(wxID_UNDO, pHexView->CanUndo());
+			Enable(wxID_REDO, pHexView->CanRedo());
+			Enable(wxID_CUT, pHexView->CanDelete());
+			Enable(wxID_DELETE, pHexView->CanDelete());
+			Enable(wxID_PASTE, pHexView->CanPaste());
+			m_HexViewActive = true;
+			return true;
 	}
-	return wxPanel::MSWOnNotify(idCtrl, lParam, result);
-}
-
-LRESULT HexViewPanel::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
-	switch (msg) {
-		case WM_CONTEXTMENU:
-			wxMenu menu;
-			menu.Append(wxID_COPY)->SetBitmap(wxArtProvider::GetIcon(wxART_COPY, wxART_MENU));
-			menu.Append(wxID_PASTE);
-			PopupMenu(&menu);
-			return 0;
-	}
-	return wxPanel::MSWWindowProc(msg, wParam, lParam);
-}
-
-void HexViewPanel::SetHexView(wxHexView* pHexView) {
-	m_pHexView = pHexView;
+	return false;
 }

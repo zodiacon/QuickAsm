@@ -103,6 +103,9 @@ public:
 	wxColor GetColor(ColorType type) const;
 	bool SetPadding(int left, int right);
 	void SetContextMenu(wxMenu* menu);
+	void SetFocus();
+	bool ProcessCommand(wxCommandEvent& evt);
+	void UpdateUI();
 
 	bool Copy() const;
 	bool CanCopy() const;
