@@ -1,6 +1,7 @@
 #pragma once
 
 #include "..\HexView\HexView.h"
+#include "../../Github/wxWidgets/include/wx/event.h"
 
 enum class HexViewStyles {
 	FormatHex = HVS_FORMAT_HEX,
@@ -101,6 +102,7 @@ public:
 	bool SetColor(ColorType type, wxColour const& color);
 	wxColor GetColor(ColorType type) const;
 	bool SetPadding(int left, int right);
+	void SetContextMenu(wxMenu* menu);
 
 	bool Copy() const;
 	bool CanCopy() const;

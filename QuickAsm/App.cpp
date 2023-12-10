@@ -5,6 +5,7 @@
 wxIMPLEMENT_APP(App);
 
 bool App::OnInit() {
+	::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 	wxSystemOptions::SetOption("msw.remap", 0);
 
 	auto frame = new MainFrame;

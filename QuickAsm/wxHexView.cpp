@@ -12,7 +12,7 @@ bool wxHexView::Create(wxWindow* parent, wxWindowID id, const wxPoint& pos, cons
     m_hWnd = CreateHexView(parent->GetHWND());
     if(!m_hWnd)
 		return false;
-
+    
     return true;
 }
 
@@ -132,6 +132,10 @@ bool wxHexView::SetPadding(int left, int right) {
     return true;
 }
 
+void wxHexView::SetContextMenu(wxMenu* menu) {
+    HexView_SetContextMenu(m_hWnd, menu->GetHMenu());
+}
+
 bool wxHexView::Copy() const {
     return HexView_Copy(m_hWnd);
 }
@@ -179,4 +183,6 @@ bool wxHexView::CanRedo() const {
 bool wxHexView::OpenFile(PCWSTR path, OpenFileMode mode) {
     return HexView_OpenFile(m_hWnd, path, mode);
 }
+
+
 

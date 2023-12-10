@@ -349,8 +349,8 @@ typedef void * HBOOKMARK;
  * Indicates that a range of bytes has changed due to 
  * an action by the user
  *
- * HVN_CHANGING - return TRUE to prevent the edit from occuring
- * HVN_CHANGED  - sent AFTER the edit has occured
+ * HVN_CHANGING - return TRUE to prevent the edit from occurring
+ * HVN_CHANGED  - sent AFTER the edit has occurred
 */
 typedef struct _NMHVCHANGED
 {

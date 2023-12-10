@@ -84,6 +84,7 @@ LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
 			m_Emulator.Stop();
 			Enable(wxID_RUN, true);
 			Enable(wxID_STOP, false);
+			Enable(wxID_ASSEMBLE, true);
 			UpdateEmulatorState();
 			break;
 	}
@@ -161,6 +162,7 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 		});
 
 	Bind(wxEVT_MENU, [this](auto& e) { Run(e); }, wxID_RUN);
+	Bind(wxEVT_MENU, [this](auto& e) { Stop(e); }, wxID_STOP);
 
 	//
 	// build right pane
@@ -222,14 +224,19 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 
 	m_Notebook->AddPage(frame, L"Registers", true, 0);
 
-	m_MemoryView = new wxHexView(m_Notebook);
+	auto panel = new HexViewPanel(m_Notebook);
+	m_MemoryView = new wxHexView(panel);
+	panel->SetHexView(m_MemoryView);
+
 	auto font = new wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"Consolas");
 	m_MemoryView->SetFont(*font);
 	m_MemoryView->InitSharedBuffer(m_Memory.data(), (ULONG)m_Memory.size());
-	//sizer = new wxBoxSizer(wxVERTICAL);
-	//sizer->Add(m_MemoryView, 1, wxEXPAND);
-	//memPanel->SetSizer(sizer);
-	m_Notebook->AddPage(m_MemoryView, L"Memory", false, 1);
+
+	sizer = new wxBoxSizer(wxVERTICAL);
+	sizer->Add(m_MemoryView, 1, wxEXPAND);
+	panel->SetSizer(sizer);
+	m_Notebook->AddPage(panel, L"Memory", false, 1);
+
 	m_Notebook->AddPage(new wxPanel(m_Notebook), L"Breakpoints", false, 2);
 }
 
@@ -268,10 +275,20 @@ void MainFrame::Run(wxCommandEvent& e) {
 	assert(m_Emulator.IsOpen());
 	Enable(wxID_STOP, true);
 	Enable(wxID_RUN, false);
+	Enable(wxID_ASSEMBLE, false);
 	m_EmulatorState = EmulatorState::Running;
 	::TrySubmitThreadpoolCallback([](auto, auto p) {
 		((MainFrame*)p)->RunOnThreadPool();
 		}, this, nullptr);
+}
+
+void MainFrame::Stop(wxCommandEvent& e) {
+	m_Emulator.Stop();
+	m_EmulatorState = EmulatorState::Idle;
+	UpdateEmulatorState();
+	Enable(wxID_RUN, true);
+	Enable(wxID_STOP, false);
+	Enable(wxID_ASSEMBLE, true);
 }
 
 void MainFrame::UpdateEmulatorState() {
@@ -345,34 +362,28 @@ void MainFrame::CreateMenu() {
 	wxSize size(16, 16);
 
 	auto menuFile = new wxMenu;
-	auto item = menuFile->Append(wxID_OPEN, _("&Open...\tCtrl+O"));
-	item->SetBitmap(wxArtProvider::GetIcon(wxART_FILE_OPEN, wxART_MENU, size));
-	item = item = menuFile->Append(wxID_SAVE, _("&Save\tCtrl+S"));
+	menuFile->Append(wxID_OPEN)->SetBitmap(wxArtProvider::GetIcon(wxART_FILE_OPEN, wxART_MENU, size));
+	auto item = menuFile->Append(wxID_SAVE);
 	item->Enable(false);
 	item->SetBitmap(wxArtProvider::GetIcon(wxART_FILE_SAVE, wxART_MENU, size));
-	item = menuFile->Append(wxID_SAVEAS, _("Save &as...\tCtrl+Shift+S"));
+	item = menuFile->Append(wxID_SAVEAS);
 	item->Enable(false);
 	item->SetBitmap(wxArtProvider::GetIcon(wxART_FILE_SAVE_AS, wxART_MENU, size));
-	menuFile->Append(wxID_CLOSE, _("&Close\tCtrl+W"))->Enable(false);
+	menuFile->Append(wxID_CLOSE)->Enable(false);
 	menuFile->AppendSeparator();
-	item = menuFile->Append(wxID_EXIT, _("&Quit\tCtrl+Q"));
+	item = menuFile->Append(wxID_EXIT);
 
 	// Edit menu
 	auto menuEdit = new wxMenu;
-	item = menuEdit->Append(wxID_UNDO, _("&Undo\tCtrl+Z"));
-	item->SetBitmap(wxArtProvider::GetIcon(wxART_UNDO, wxART_MENU, size));
-	item = menuEdit->Append(wxID_REDO, _("&Redo\tCtrl+Shift+Z"));
-	item->SetBitmap(wxArtProvider::GetIcon(wxART_REDO, wxART_MENU, size));
+	menuEdit->Append(wxID_UNDO)->SetBitmap(wxArtProvider::GetIcon(wxART_UNDO, wxART_MENU, size));
+	menuEdit->Append(wxID_REDO)->SetBitmap(wxArtProvider::GetIcon(wxART_REDO, wxART_MENU, size));
 	menuEdit->AppendSeparator();
-	item = menuEdit->Append(wxID_CUT, _("Cu&t\tCtrl+X"));
-	item->SetBitmap(wxArtProvider::GetIcon(wxART_CUT, wxART_MENU, size));
-	item = menuEdit->Append(wxID_COPY, _("&Copy\tCtrl+C"));
-	item->SetBitmap(wxArtProvider::GetIcon(wxART_COPY, wxART_MENU, size));
-	item = menuEdit->Append(wxID_PASTE, _("&Paste\tCtrl+V"));
-	item->SetBitmap(wxArtProvider::GetIcon(wxART_PASTE, wxART_MENU, size));
-	menuEdit->Append(wxID_CLEAR, _("&Delete\tDel"));
+	menuEdit->Append(wxID_CUT)->SetBitmap(wxArtProvider::GetIcon(wxART_CUT, wxART_MENU, size));
+	menuEdit->Append(wxID_COPY)->SetBitmap(wxArtProvider::GetIcon(wxART_COPY, wxART_MENU, size));
+	menuEdit->Append(wxID_PASTE)->SetBitmap(wxArtProvider::GetIcon(wxART_PASTE, wxART_MENU, size));
+	menuEdit->Append(wxID_CLEAR);
 	menuEdit->AppendSeparator();
-	menuEdit->Append(wxID_FIND, _("&Find\tCtrl+F"));
+	menuEdit->Append(wxID_FIND);
 
 	auto asmMenu = new wxMenu;
 	item = asmMenu->Append(wxID_ASSEMBLE, _("&Assemble\tF7"));
@@ -431,10 +442,10 @@ void MainFrame::Disassemble(uint8_t const* data, size_t size) {
 		m_DisamSource.SetReadOnly(false);
 		m_DisamSource.ClearAll();
 		for (auto& insn : m_Instructions) {
-			m_DisamSource.AppendText(wxString::Format("0x%08X %-8s %-24s ; ",
+			m_DisamSource.AppendText(wxString::Format("0x%08X %-8s %-24s ;",
 				(DWORD)insn.Address, insn.Mnemonic, insn.Operands));
 			for (auto b : insn.Bytes) {
-				m_DisamSource.AppendText(wxString::Format(L"%02X ", b));
+				m_DisamSource.AppendText(wxString::Format(L" %02X", b));
 			}
 			m_DisamSource.AppendText(L"\n");
 		}
@@ -451,4 +462,34 @@ void MainFrame::Disassemble(uint8_t const* data, size_t size) {
 			
 		}
 	}
+}
+
+HexViewPanel::HexViewPanel(wxWindow* parent) : wxPanel(parent) {
+}
+
+bool HexViewPanel::MSWOnNotify(int idCtrl, WXLPARAM lParam, WXLPARAM* result) {
+	auto hdr = (LPNMHDR)lParam;
+	if (hdr->hwndFrom == m_pHexView->GetHWND()) {
+		switch (hdr->code) {
+			case HVN_CURSOR_CHANGE:
+				return true;
+		}
+	}
+	return wxPanel::MSWOnNotify(idCtrl, lParam, result);
+}
+
+LRESULT HexViewPanel::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
+	switch (msg) {
+		case WM_CONTEXTMENU:
+			wxMenu menu;
+			menu.Append(wxID_COPY)->SetBitmap(wxArtProvider::GetIcon(wxART_COPY, wxART_MENU));
+			menu.Append(wxID_PASTE);
+			PopupMenu(&menu);
+			return 0;
+	}
+	return wxPanel::MSWWindowProc(msg, wParam, lParam);
+}
+
+void HexViewPanel::SetHexView(wxHexView* pHexView) {
+	m_pHexView = pHexView;
 }

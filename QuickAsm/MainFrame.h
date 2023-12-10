@@ -7,7 +7,18 @@
 class AssemblerBase;
 struct RegisterInfo;
 class wxHexView;
-class wxNativeWindow;
+
+class HexViewPanel : public wxPanel {
+public:
+	HexViewPanel(wxWindow* parent);
+	bool MSWOnNotify(int idCtrl, WXLPARAM lParam, WXLPARAM* result) override;
+	LRESULT MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) override;
+
+	void SetHexView(wxHexView* pHexView);
+
+private:
+	wxHexView* m_pHexView{ nullptr };
+};
 
 class MainFrame : public wxFrame {
 public:
@@ -26,7 +37,7 @@ private:
 	void Enable(int id, bool enable);
 	void ShowRegisters();
 	void Run(wxCommandEvent& e);
-	void Debug(wxCommandEvent& e);
+	void Stop(wxCommandEvent& e);
 	void UpdateEmulatorState();
 	void SetRegisterValue(int row, RegisterInfo const& reg);
 	void DoSortRegisters(int col, bool asc);
