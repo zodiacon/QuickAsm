@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "App.h"
 #include "MainFrame.h"
-#include <wx/config.h>
+#include <wx/utils.h>
 
 wxIMPLEMENT_APP(App);
 
@@ -10,7 +10,7 @@ bool App::OnInit() {
 	wxSystemOptions::SetOption("msw.remap", 0);
 	auto config = wxConfig::Get();
 	int mode = config->ReadLong(L"DarkMode", 2);
-	switch(mode) {
+	switch (mode) {
 		case 0: MSWEnableDarkMode(DarkMode_Always); break;
 		case 2: MSWEnableDarkMode(DarkMode_Auto);
 	}
@@ -20,4 +20,13 @@ bool App::OnInit() {
 	frame->Show(true);
 
 	return true;
+}
+
+int App::OnExit() {
+	if (Restart) {
+		WCHAR path[MAX_PATH];
+		::GetModuleFileName(nullptr, path, _countof(path));
+		wxExecute(path);
+	}
+	return 0;
 }

@@ -83,6 +83,11 @@ MainFrame::MainFrame() {
 		if (selected) {
 			auto config = wxConfig::Get();
 			config->Write(L"DarkMode", e.GetId() - wxID_DARKTHEME);
+			if(wxYES == wxMessageBox(L"Restart QuickAsm for the change to take effect?", L"Quick Asm", 
+				wxYES | wxNO | wxICON_QUESTION)) {
+				wxGetApp().Restart = true;
+				wxGetApp().ExitMainLoop();
+			}
 		}
 		}, wxID_DARKTHEME, wxID_DARKTHEME + 2);
 

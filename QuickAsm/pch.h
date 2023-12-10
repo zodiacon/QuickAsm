@@ -8,6 +8,8 @@
 #include <wx/sysopt.h>
 #include <wx/notebook.h>
 #include <wx/listctrl.h>
+#include <wx/msgdlg.h> 
+#include <wx/config.h> 
 
 #include <string>
 #include <string_view>

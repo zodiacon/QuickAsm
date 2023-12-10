@@ -1,10 +1,13 @@
 #pragma once
 
-#include "MainFrame.h"
 
 class App : public wxApp {
 public:
-	virtual bool OnInit();
+	bool OnInit() override;
+	int OnExit() override;
 
+	bool Restart{ false };
 private:
 };
+
+wxDECLARE_APP(App);
