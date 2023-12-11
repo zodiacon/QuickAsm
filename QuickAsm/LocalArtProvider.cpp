@@ -25,6 +25,7 @@ wxBitmapBundle LocalArtProvider::CreateBitmapBundle(const wxArtID& id, const wxA
         { "RUN", "RUN" },
 		{ "STOP", "STOP" },
         { wxART_EDIT, "EDIT" },
+        { "BREAKPOINT", "BREAKPOINT" },
     };
 
     for (auto& icon : iconsMap) {

@@ -21,3 +21,4 @@
 #include <keystone/keystone.h>
 #include <capstone/capstone.h>
 #include <unicorn/unicorn.h>
+#include <wil/resource.h>

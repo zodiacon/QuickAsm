@@ -5,6 +5,12 @@ public:
     AssemblyEditCtrl();
     void Init();
 
+    enum {
+        BreakpointMarker = 2,
+    };
+
+    bool ToggleBreakpoint(int line);
+
     // common
     void OnCreate(wxWindowCreateEvent& event);
     void OnSize(wxSizeEvent& event);

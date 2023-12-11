@@ -21,6 +21,8 @@ enum {
 	wxID_64BITREG,
 	wxID_RUN,
 	wxID_DARKTHEME,
+	wxID_TOGGLEBP = wxID_DARKTHEME + 3,
+	wxID_DELETEALL_BP,
 };
 
 MainFrame::MainFrame() {
@@ -83,16 +85,19 @@ MainFrame::MainFrame() {
 		if (selected) {
 			auto config = wxConfig::Get();
 			config->Write(L"DarkMode", e.GetId() - wxID_DARKTHEME);
-			if(wxYES == wxMessageBox(L"Restart QuickAsm for the change to take effect?", L"Quick Asm", 
+			if (wxYES == wxMessageBox(L"Restart QuickAsm for the change to take effect?", L"Quick Asm",
 				wxYES | wxNO | wxICON_QUESTION)) {
 				wxGetApp().Restart = true;
-				wxGetApp().ExitMainLoop();
+				Close();
 			}
 		}
 		}, wxID_DARKTHEME, wxID_DARKTHEME + 2);
 
 	m_Assemblers.push_back(std::make_unique<KeystoneAssembler>());
 	m_Assemblers.push_back(std::make_unique<NasmAssembler>());
+
+	m_hContinueEvent.reset(::CreateEvent(nullptr, FALSE, FALSE, nullptr));
+	m_hStopEvent.reset(::CreateEvent(nullptr, FALSE, FALSE, nullptr));
 }
 
 LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
@@ -104,6 +109,16 @@ LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
 			Enable(wxID_STOP, false);
 			Enable(wxID_ASSEMBLE, true);
 			UpdateEmulatorState();
+			break;
+
+		case EmulatorMessage::BreakpointHit:
+			m_EmulatorState = EmulatorState::Breakpoint;
+			auto& bp = m_Breakpoints[lParam];
+			//m_DisamSource.SetCurrentPos(m_DisamSource.PositionFromLine(bp.Line));
+			m_DisamSource.SetIndicatorCurrent(2);
+			m_DisamSource.IndicatorFillRange(m_DisamSource.PositionFromLine(bp.Line), m_DisamSource.LineLength(bp.Line));
+			UpdateEmulatorState();
+			Enable(wxID_RUN, true);
 			break;
 	}
 	return wxFrame::MSWWindowProc(msg, wParam, lParam);
@@ -148,6 +163,8 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	tb->AddTool(wxID_ASSEMBLE, L"Assemble", wxArtProvider::GetIcon(L"BUILD", wxART_TOOLBAR, size))->Enable(false);
 	tb->AddTool(wxID_RUN, L"Run", wxArtProvider::GetIcon(L"RUN", wxART_TOOLBAR, size))->Enable(false);
 	tb->AddTool(wxID_STOP, L"", wxArtProvider::GetIcon("STOP", wxART_TOOLBAR, size))->Enable(false);
+	tb->AddSeparator();
+	tb->AddTool(wxID_TOGGLEBP, L"", wxArtProvider::GetIcon("BREAKPOINT", wxART_TOOLBAR, size))->Enable(false);
 	tb->Realize();
 
 	m_Splitter.Create(this, wxID_ANY);
@@ -180,8 +197,25 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 		Enable(wxID_CUT, m_AsmSource.CanCut());
 		});
 
+	m_DisamSource.Bind(wxEVT_STC_UPDATEUI, [this](auto& e) {
+		m_HexViewActive = false;
+		Enable(wxID_COPY, m_DisamSource.CanCopy());
+		Enable(wxID_UNDO, false);
+		Enable(wxID_REDO, false);
+		Enable(wxID_CUT, false);
+		Enable(wxID_PASTE, false);
+		Enable(wxID_CLEAR, false);
+		});
+
+	m_DisamSource.Bind(wxEVT_STC_MARGINCLICK, [this](auto& e) {
+		if (e.GetMargin() == 1) {
+			ToggleBreakpoint(m_DisamSource.LineFromPosition(e.GetPosition()));
+		}
+		});
+
 	Bind(wxEVT_MENU, [this](auto& e) { Run(e); }, wxID_RUN);
 	Bind(wxEVT_MENU, [this](auto& e) { Stop(e); }, wxID_STOP);
+	Bind(wxEVT_MENU, [this](auto& e) { ToggleBreakpoint(e); }, wxID_TOGGLEBP);
 
 	//
 	// build right pane
@@ -252,12 +286,7 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 		m_MemoryView->SetColor(ColorType::Hexeven, 0xF0F0F0);
 		m_MemoryView->SetColor(ColorType::Address, 0xF0F0F0);
 		m_MemoryView->SetColor(ColorType::Ascii, 0xF0F0F0);
-		//m_MemoryView->SetColor(ColorType::Hexoddsel, "BLUE");
-		//m_MemoryView->SetColor(ColorType::Hexevensel, "BLUE");
-		//m_MemoryView->SetColor(ColorType::Selection, "BLUE");
 	}
-	//m_MemoryView->SetColor(ColorType::Modify, "RED");
-	//m_MemoryView->SetColor(ColorType::Selection, "BLUE");
 	panel->SetHexView(m_MemoryView);
 
 	auto font = new wxFont(12, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL, false, L"Consolas");
@@ -267,7 +296,7 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	sizer = new wxBoxSizer(wxVERTICAL);
 	sizer->Add(m_MemoryView, 1, wxEXPAND);
 	panel->SetSizer(sizer);
-	m_Notebook->AddPage(panel, L"Memory", true, 1);
+	m_Notebook->AddPage(panel, L"Memory", false, 1);
 
 	m_Notebook->AddPage(new wxPanel(m_Notebook), L"Breakpoints", false, 2);
 }
@@ -298,6 +327,21 @@ void MainFrame::ShowRegisters() {
 }
 
 void MainFrame::RunOnThreadPool() {
+	if (!m_Breakpoints.empty()) {
+		m_Emulator.HookCode(HookType::CODE, [&](auto address, auto) {
+			if (m_Breakpoints.contains(address)) {
+				::PostMessage(GetHandle(), UINT(EmulatorMessage::BreakpointHit), 0, address);
+				m_BreakpointAddress = address;
+				HANDLE hEvents[] = { m_hContinueEvent.get(), m_hStopEvent.get() };
+				auto rc = ::WaitForMultipleObjects(_countof(hEvents), hEvents, FALSE, INFINITE);
+				if (rc == WAIT_OBJECT_0)
+					return;
+
+				m_Emulator.Stop();
+				::PostMessage(this->GetHandle(), UINT(EmulatorMessage::RunComplete), 0, 0);
+			}
+			}, m_Instructions[0].Address, m_Instructions[0].Address + m_AsmBytes.size());
+	}
 	auto ok = m_Emulator.Start(m_Instructions[0].Address, m_Instructions[0].Address + m_AsmBytes.size());
 	assert(ok);
 	::PostMessage(this->GetHandle(), UINT(EmulatorMessage::RunComplete), 0, 0);
@@ -305,22 +349,68 @@ void MainFrame::RunOnThreadPool() {
 
 void MainFrame::Run(wxCommandEvent& e) {
 	assert(m_Emulator.IsOpen());
-	Enable(wxID_STOP, true);
-	Enable(wxID_RUN, false);
-	Enable(wxID_ASSEMBLE, false);
-	m_EmulatorState = EmulatorState::Running;
-	::TrySubmitThreadpoolCallback([](auto, auto p) {
-		((MainFrame*)p)->RunOnThreadPool();
-		}, this, nullptr);
+	switch (m_EmulatorState) {
+		case EmulatorState::Idle:
+			m_BreakpointAddress = 0;
+			Enable(wxID_STOP, true);
+			Enable(wxID_RUN, false);
+			Enable(wxID_ASSEMBLE, false);
+			m_EmulatorState = EmulatorState::Running;
+			::TrySubmitThreadpoolCallback([](auto, auto p) {
+				((MainFrame*)p)->RunOnThreadPool();
+				}, this, nullptr);
+			break;
+
+		case EmulatorState::Breakpoint:
+		{
+			auto& bp = m_Breakpoints[m_BreakpointAddress];
+			m_DisamSource.IndicatorClearRange(m_DisamSource.PositionFromLine(bp.Line), m_DisamSource.LineLength(bp.Line));
+			::SetEvent(m_hContinueEvent.get());
+		}
+			break;
+	}
 }
 
 void MainFrame::Stop(wxCommandEvent& e) {
-	m_Emulator.Stop();
-	m_EmulatorState = EmulatorState::Idle;
-	UpdateEmulatorState();
-	Enable(wxID_RUN, true);
-	Enable(wxID_STOP, false);
-	Enable(wxID_ASSEMBLE, true);
+	if (m_BreakpointAddress) {
+		auto& bp = m_Breakpoints[m_BreakpointAddress];
+		m_DisamSource.IndicatorClearRange(m_DisamSource.PositionFromLine(bp.Line), m_DisamSource.LineLength(bp.Line));
+	}
+	switch (m_EmulatorState) {
+		case EmulatorState::Running:
+			m_Emulator.Stop();
+			m_EmulatorState = EmulatorState::Idle;
+			UpdateEmulatorState();
+			Enable(wxID_RUN, true);
+			Enable(wxID_STOP, false);
+			Enable(wxID_ASSEMBLE, true);
+			break;
+
+		case EmulatorState::Breakpoint:
+			::SetEvent(m_hStopEvent.get());
+			break;
+	}
+}
+
+void MainFrame::ToggleBreakpoint(wxCommandEvent& e) {
+	auto line = m_DisamSource.GetCurrentLine();
+	ToggleBreakpoint(line);
+}
+
+void MainFrame::ToggleBreakpoint(int line) {
+	if (line >= m_Instructions.size()) {
+		::MessageBeep(-1);
+		return;
+	}
+
+	if (m_DisamSource.ToggleBreakpoint(line)) {
+		BreakpointInfo bp;
+		bp.Address = m_Instructions[line].Address;
+		bp.Line = line;
+		m_Breakpoints.insert({ bp.Address, bp });
+	}
+	else
+		m_Breakpoints.erase(m_Instructions[line].Address);
 }
 
 void MainFrame::UpdateEmulatorState() {
@@ -335,8 +425,19 @@ void MainFrame::UpdateEmulatorState() {
 void MainFrame::SetRegisterValue(int i, RegisterInfo const& ri) {
 	if ((ri.Category & RegisterType::Descriptor) == RegisterType::None) {
 		auto value = m_Emulator.ReadReg<size_t>(ri.Id);
-		m_RegistersList.SetItem(i, 2, wxString::Format(L"0x%zX", value));
-		m_RegistersList.SetItem(i, 4, wxString::Format(L"%zu", value));
+		m_RegistersList.SetItem(i, 2, wxString::Format(L"0x%llX", value));
+		if (ri.Id == x86Register::EFLAGS)
+			m_RegistersList.SetItem(i, 4, Helpers::CPUFlagsToString((uint32_t)value));
+		else {
+			wxString text;
+			switch (ri.Size) {
+				case 8: text = wxString::Format(L"%u (%d)", (uint8_t)value, (int8_t)value); break;
+				case 16: text = wxString::Format(L"%u (%d)", (uint16_t)value, (int16_t)value); break;
+				case 32: text = wxString::Format(L"%u (%d)", (uint32_t)value, (int32_t)value); break;
+				case 64: text = wxString::Format(L"%llu (%lld)", value, (int64_t)value); break;
+			}
+			m_RegistersList.SetItem(i, 4, text);
+		}
 	}
 	else {
 		auto value = m_Emulator.ReadReg<uc_x86_mmr>(ri.Id);
@@ -428,6 +529,8 @@ void MainFrame::CreateMenu() {
 	item = asmMenu->Append(wxID_STOP, _("&Stop\tShift+F5"));
 	item->Enable(false);
 	item->SetBitmap(wxArtProvider::GetIcon(L"STOP", wxART_MENU, size));
+	asmMenu->AppendSeparator();
+	asmMenu->Append(wxID_TOGGLEBP, L"Toggle Breakpoint\tF9")->Enable(false);
 
 	auto options = new wxMenu;
 	auto dark = wxSystemSettings::GetAppearance().IsDark();
@@ -502,7 +605,7 @@ void MainFrame::Disassemble(uint8_t const* data, size_t size) {
 			m_MemoryView->ScrollTop(m_Instructions[0].Address);
 
 			ShowRegisters();
-			
+			Enable(wxID_TOGGLEBP, true);
 		}
 	}
 }

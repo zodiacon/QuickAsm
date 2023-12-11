@@ -93,9 +93,17 @@ AssemblyEditCtrl::AssemblyEditCtrl() {
 }
 
 void AssemblyEditCtrl::Init() {
+	SetMarginSensitive(1, true);
+
+	//IndicatorSetStyle(2, wxSTC_INDIC_FULLBOX);
 	SetTabWidth(4);
 	SetMarginType(0, wxSTC_MARGIN_NUMBER);
-	SetMarginWidth(0, 25);
+	SetMarginType(1, wxSTC_MARGIN_SYMBOL);
+	MarkerDefine(1, wxSTC_MARK_CIRCLE);
+	MarkerSetBackground(1, RGB(128, 0, 0));
+	//MarkerSetForeground(1, RGB(0, 0, 0));
+	SetMarginWidth(0, 30);
+	SetMarginWidth(1, 20);
 	SetLexer(wxSTC_LEX_ASM);
 	wxFont font(wxFontInfo(12).FaceName("Consolas"));
 	StyleSetFont(wxSTC_STYLE_DEFAULT, font);
@@ -117,6 +125,16 @@ void AssemblyEditCtrl::Init() {
 	for (int i = 0; i < _countof(KeyWords_ASM); i++)
 		SetKeyWords(i, KeyWords_ASM[i]);
 }
+
+bool AssemblyEditCtrl::ToggleBreakpoint(int line) {
+	if (MarkerGet(line) & BreakpointMarker) {
+		MarkerDelete(line, 1);
+		return false;
+	}
+	MarkerAdd(line, 1);
+	return true;
+}
+
 
 // edit event handlers
 void AssemblyEditCtrl::OnEditRedo(wxCommandEvent& WXUNUSED(event)) {

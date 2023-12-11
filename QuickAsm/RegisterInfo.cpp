@@ -2,6 +2,10 @@
 #include "RegisterInfo.h"
 
 const std::vector<RegisterInfo> AllRegisters {
+	{ "IP", 16, x86Register::IP, RegisterType::Special | RegisterType::Bits16 },
+	{ "EIP", 32, x86Register::EIP, RegisterType::Special | RegisterType::Bits32 },
+	{ "RIP", 64, x86Register::RIP, RegisterType::Special | RegisterType::Bits64 },
+
 	{ "AX", 16, x86Register::AX, RegisterType::General | RegisterType::AllBits , x86Register::EAX, 0 },
 	{ "AL", 8,  x86Register::AL, RegisterType::General | RegisterType::AllBits , x86Register::AX, 0 },
 	{ "AH", 8,  x86Register::AH, RegisterType::General | RegisterType::AllBits , x86Register::AX, 8 },
@@ -17,10 +21,6 @@ const std::vector<RegisterInfo> AllRegisters {
 	{ "DX", 16, x86Register::DX, RegisterType::General | RegisterType::AllBits, x86Register::EDX, 0 },
 	{ "DL", 8,  x86Register::DL, RegisterType::General | RegisterType::AllBits, x86Register::DX, 0 },
 	{ "DH", 8,  x86Register::DH, RegisterType::General | RegisterType::AllBits, x86Register::DX, 8 },
-
-	{ "IP", 16, x86Register::IP, RegisterType::Special | RegisterType::Bits16 },
-	{ "EIP", 32, x86Register::EIP, RegisterType::Special | RegisterType::Bits32 },
-	{ "RIP", 64, x86Register::RIP, RegisterType::Special | RegisterType::Bits64 },
 
 	{ "EAX", 32, x86Register::EAX, RegisterType::General | RegisterType::Bits32 | RegisterType::Bits64, x86Register::RAX },
 	{ "EBX", 32, x86Register::EBX, RegisterType::General | RegisterType::Bits32 | RegisterType::Bits64, x86Register::RBX },
@@ -109,5 +109,29 @@ const std::vector<RegisterInfo> AllRegisters {
 	{ "IDTR", 80,  x86Register::IDTR, RegisterType::Descriptor | RegisterType::Bits64 },
 	{ "TR", 48,  x86Register::TR, RegisterType::Descriptor | RegisterType::Bits32 },
 	{ "TR", 80,  x86Register::TR, RegisterType::Descriptor | RegisterType::Bits64 },
+
+	//{ "ST0", 80,  x86Register::ST0, RegisterType::FloatingPoint },
+	//{ "ST1", 80,  x86Register::ST1, RegisterType::FloatingPoint },
+	//{ "ST2", 80,  x86Register::ST2, RegisterType::FloatingPoint },
+	//{ "ST3", 80,  x86Register::ST3, RegisterType::FloatingPoint },
+	//{ "ST4", 80,  x86Register::ST4, RegisterType::FloatingPoint },
+	//{ "ST5", 80,  x86Register::ST5, RegisterType::FloatingPoint },
+	//{ "ST6", 80,  x86Register::ST6, RegisterType::FloatingPoint },
+	//{ "ST7", 80,  x86Register::ST7, RegisterType::FloatingPoint },
+
+	//{ "MM0", 64,  x86Register::MM0, RegisterType::SSE },
+	//{ "MM1", 64,  x86Register::MM1, RegisterType::SSE },
+	//{ "MM2", 64,  x86Register::MM2, RegisterType::SSE },
+	//{ "MM3", 64,  x86Register::MM3, RegisterType::SSE },
+	//{ "MM4", 64,  x86Register::MM4, RegisterType::SSE },
+	//{ "MM5", 64,  x86Register::MM5, RegisterType::SSE },
+	//{ "MM6", 64,  x86Register::MM6, RegisterType::SSE },
+	//{ "MM7", 64,  x86Register::MM7, RegisterType::SSE },
+
+	//{ "XMM0", 128,  x86Register::XMM0, RegisterType::SSE },
+	//{ "XMM1", 128,  x86Register::XMM1, RegisterType::SSE },
+	//{ "XMM2", 128,  x86Register::XMM2, RegisterType::SSE },
+	//{ "XMM3", 128,  x86Register::XMM3, RegisterType::SSE },
+	//{ "XMM4", 128,  x86Register::XMM4, RegisterType::SSE },
 };
 

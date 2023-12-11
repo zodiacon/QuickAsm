@@ -25,6 +25,12 @@
     <Filter Include="Disassemblers">
       <UniqueIdentifier>{d0e62e76-1419-4712-ae1a-3061b788c939}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Emulators">
+      <UniqueIdentifier>{e9420882-a4ba-4048-bafc-a769087f99f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Controls">
+      <UniqueIdentifier>{3acd8b09-19b6-440b-8a17-cedda80cf210}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="targetver.h">
@@ -40,9 +46,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="AssemblyEditCtrl.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="LocalArtProvider.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="AssemblerBase.h">
@@ -63,17 +66,20 @@
     <ClInclude Include="CapstoneEngine.h">
       <Filter>Disassemblers</Filter>
     </ClInclude>
-    <ClInclude Include="UnicornEngine.h">
+    <ClInclude Include="HexViewPanel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="RegisterInfo.h">
-      <Filter>Header Files</Filter>
+      <Filter>Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="UnicornEngine.h">
+      <Filter>Emulators</Filter>
     </ClInclude>
     <ClInclude Include="wxHexView.h">
-      <Filter>Header Files</Filter>
+      <Filter>Controls</Filter>
     </ClInclude>
-    <ClInclude Include="HexViewPanel.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="LocalArtProvider.h">
+      <Filter>Helpers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -87,9 +93,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="AssemblyEditCtrl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="LocalArtProvider.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="AssemblerBase.cpp">
@@ -107,20 +110,23 @@
     <ClCompile Include="CapstoneEngine.cpp">
       <Filter>Disassemblers</Filter>
     </ClCompile>
-    <ClCompile Include="UnicornEngine.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="RegisterInfo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="wxHexView.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\common\Trace.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="HexViewPanel.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RegisterInfo.cpp">
+      <Filter>Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="UnicornEngine.cpp">
+      <Filter>Emulators</Filter>
+    </ClCompile>
+    <ClCompile Include="wxHexView.cpp">
+      <Filter>Controls</Filter>
+    </ClCompile>
+    <ClCompile Include="LocalArtProvider.cpp">
+      <Filter>Helpers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

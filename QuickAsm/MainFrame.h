@@ -27,6 +27,9 @@ private:
 	void ShowRegisters();
 	void Run(wxCommandEvent& e);
 	void Stop(wxCommandEvent& e);
+	void ToggleBreakpoint(wxCommandEvent& e);
+	void ToggleBreakpoint(int line);
+
 	void UpdateEmulatorState();
 	void SetRegisterValue(int row, RegisterInfo const& reg);
 	void DoSortRegisters(int col, bool asc);
@@ -41,6 +44,13 @@ private:
 
 	enum class EmulatorMessage {
 		RunComplete = WM_USER + 100,
+		BreakpointHit,
+	};
+
+	struct BreakpointInfo {
+		size_t Address;
+		int Line;
+		bool IsEnabled : 1{ true };
 	};
 
 	wxSplitterWindow m_Splitter, m_HSplitter;
@@ -54,6 +64,7 @@ private:
 	wxString m_FileName;
 	int m_AssemblerIndex{ 1 };
 	std::vector<std::unique_ptr<AssemblerBase>> m_Assemblers;
+	std::unordered_map<size_t, BreakpointInfo> m_Breakpoints;
 	std::vector<uint8_t> m_AsmBytes;
 	wxImageList m_ImageList;
 	std::vector<Instruction> m_Instructions;
@@ -62,6 +73,8 @@ private:
 	DWORD m_RegViewFilter{ 1 << 2 };
 	void* m_EmulatorContext{ nullptr };
 	std::vector<uint8_t> m_Memory;
+	wil::unique_handle m_hContinueEvent, m_hStopEvent;
+	std::atomic<uint64_t> m_BreakpointAddress{ 0 };
 	bool m_Modified{ false };
 	bool m_HexViewActive{ false };
 };

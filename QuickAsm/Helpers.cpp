@@ -47,13 +47,13 @@ wxString Helpers::CPUFlagsToString(uint32_t value) {
         int bit;
         PCWSTR text;
     } flags[] = {
-        { 0, L"CF" },
-        { 2, L"PF" },
-        { 4, L"AF" },
-        { 6, L"ZF" },
-        { 7, L"SF" },
-        { 10, L"DF" },
-        { 11, L"OF" },
+        { 0, L"C" },
+        { 2, L"P" },
+        { 4, L"A" },
+        { 6, L"Z" },
+        { 7, L"S" },
+        { 10, L"D" },
+        { 11, L"O" },
         { 14, L"NT" },
         { 16, L"RF" },
         { 17, L"VM" },
