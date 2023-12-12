@@ -102,6 +102,8 @@ void AssemblyEditCtrl::Init() {
 	MarkerDefine(1, wxSTC_MARK_CIRCLE);
 	MarkerSetBackground(1, RGB(128, 0, 0));
 	//MarkerSetForeground(1, RGB(0, 0, 0));
+	SetMarginBackground(1, RGB(128, 128, 128));
+
 	SetMarginWidth(0, 30);
 	SetMarginWidth(1, 20);
 	SetLexer(wxSTC_LEX_ASM);

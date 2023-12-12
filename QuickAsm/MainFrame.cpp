@@ -32,7 +32,7 @@ MainFrame::MainFrame() {
 
 	auto handler = [this](auto& e) {
 		auto focus = FindFocus();
-		if (focus == &m_AsmSource) {
+		if (focus == m_AsmSource) {
 			focus->GetEventHandler()->ProcessEventLocally(e);
 		}
 		else if (m_HexViewActive) {
@@ -52,8 +52,8 @@ MainFrame::MainFrame() {
 			Disassemble(m_AsmBytes);
 		}
 		else {
-			m_AsmSource.LoadFile(m_FileName);
-			m_AsmSource.SetModified(false);
+			m_AsmSource->LoadFile(m_FileName);
+			m_AsmSource->SetModified(false);
 		}
 		SetTitle(wxString::Format(L"QuickAsm - %s", m_FileName));
 	}
@@ -65,13 +65,13 @@ MainFrame::MainFrame() {
 		if (m_FileName.IsEmpty())
 			DoSaveAs(e);
 		else {
-			m_AsmSource.SaveFile(m_FileName);
-			m_AsmSource.SetModified(false);
+			m_AsmSource->SaveFile(m_FileName);
+			m_AsmSource->SetModified(false);
 		}
 		}, wxID_SAVE);
 
 	Bind(wxEVT_MENU, [this](auto& e) {
-		auto text = m_AsmSource.GetText();
+		auto text = m_AsmSource->GetText();
 		Assemble(text);
 		}, wxID_ASSEMBLE);
 	Bind(wxEVT_MENU, [this](auto& e) {
@@ -115,8 +115,8 @@ LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
 			m_EmulatorState = EmulatorState::Breakpoint;
 			auto& bp = m_Breakpoints[lParam];
 			//m_DisamSource.SetCurrentPos(m_DisamSource.PositionFromLine(bp.Line));
-			m_DisamSource.SetIndicatorCurrent(2);
-			m_DisamSource.IndicatorFillRange(m_DisamSource.PositionFromLine(bp.Line), m_DisamSource.LineLength(bp.Line));
+			m_DisamSource->SetIndicatorCurrent(2);
+			m_DisamSource->IndicatorFillRange(m_DisamSource->PositionFromLine(bp.Line), m_DisamSource->LineLength(bp.Line));
 			UpdateEmulatorState();
 			Enable(wxID_RUN, true);
 			break;
@@ -152,9 +152,9 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	tb->AddControl(asmIcon);
 	tb->AddControl(cbAsm);
 	tb->AddSeparator();
-	tb->AddRadioTool(wxID_16BIT, wxEmptyString, wxArtProvider::GetIcon(L"16BIT", wxART_TOOLBAR));
-	auto tool = tb->AddRadioTool(wxID_32BIT, wxEmptyString, wxArtProvider::GetIcon(L"32BIT", wxART_TOOLBAR));
-	tb->AddRadioTool(wxID_64BIT, wxEmptyString, wxArtProvider::GetIcon(L"64BIT", wxART_TOOLBAR));
+	tb->AddRadioTool(wxID_16BIT, wxEmptyString, wxArtProvider::GetIcon(L"16BIT", wxART_TOOLBAR, size));
+	auto tool = tb->AddRadioTool(wxID_32BIT, wxEmptyString, wxArtProvider::GetIcon(L"32BIT", wxART_TOOLBAR, size));
+	tb->AddRadioTool(wxID_64BIT, wxEmptyString, wxArtProvider::GetIcon(L"64BIT", wxART_TOOLBAR, size));
 	tool->Toggle(true);
 	tb->AddSeparator();
 	tb->AddControl(new wxStaticText(tb, wxID_ANY, L"Address:"));
@@ -167,39 +167,41 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	tb->AddTool(wxID_TOGGLEBP, L"", wxArtProvider::GetIcon("BREAKPOINT", wxART_TOOLBAR, size))->Enable(false);
 	tb->Realize();
 
-	m_Splitter.Create(this, wxID_ANY);
-	m_Splitter.SetMinimumPaneSize(150);
-	m_Splitter.SetWindowStyleFlag(wxSP_LIVE_UPDATE | wxSP_BORDER);
+	m_Splitter = new wxSplitterWindow(this, wxID_ANY);
+	m_Splitter->SetMinimumPaneSize(150);
+	m_Splitter->SetWindowStyleFlag(wxSP_LIVE_UPDATE | wxSP_BORDER);
 
-	m_HSplitter.Create(&m_Splitter, wxID_ANY);
-	m_HSplitter.SetMinimumPaneSize(150);
-	m_HSplitter.SetWindowStyleFlag(wxSP_LIVE_UPDATE | wxSP_BORDER);
+	m_HSplitter = new wxSplitterWindow(m_Splitter, wxID_ANY);
+	m_HSplitter->SetMinimumPaneSize(150);
+	m_HSplitter->SetWindowStyleFlag(wxSP_LIVE_UPDATE | wxSP_BORDER);
 
-	m_AsmSource.Create(&m_Splitter, wxID_ANY);
-	m_AsmSource.Init();
-	m_AsmSource.Bind(wxEVT_STC_UPDATEUI, [this](auto& e) {
+	m_AsmSource = new AssemblyEditCtrl;
+	m_AsmSource->Create(m_Splitter, wxID_ANY);
+	m_AsmSource->Init();
+	m_AsmSource->Bind(wxEVT_STC_UPDATEUI, [this](auto& e) {
 		m_HexViewActive = false;
-		auto anyText = m_AsmSource.GetTextLength() > 0;
+		auto anyText = m_AsmSource->GetTextLength() > 0;
 		Enable(wxID_SAVEAS, anyText);
 		Enable(wxID_ASSEMBLE, anyText);
-		auto modified = m_AsmSource.IsModified();
+		auto modified = m_AsmSource->IsModified();
 		Enable(wxID_SAVE, modified);
 		if (modified != m_Modified) {
 			m_Modified = modified;
 			if (!m_FileName.IsEmpty())
 				SetTitle(wxString::Format(L"QuickAsm - %s%s", m_FileName, modified ? L"*" : L""));
 		}
-		Enable(wxID_UNDO, m_AsmSource.CanUndo());
-		Enable(wxID_REDO, m_AsmSource.CanRedo());
-		Enable(wxID_COPY, m_AsmSource.CanCopy());
-		Enable(wxID_PASTE, m_AsmSource.CanPaste());
-		Enable(wxID_CLEAR, !m_AsmSource.GetReadOnly());
-		Enable(wxID_CUT, m_AsmSource.CanCut());
+		Enable(wxID_UNDO, m_AsmSource->CanUndo());
+		Enable(wxID_REDO, m_AsmSource->CanRedo());
+		Enable(wxID_COPY, m_AsmSource->CanCopy());
+		Enable(wxID_PASTE, m_AsmSource->CanPaste());
+		Enable(wxID_CLEAR, !m_AsmSource->GetReadOnly());
+		Enable(wxID_CUT, m_AsmSource->CanCut());
 		});
 
-	m_DisamSource.Bind(wxEVT_STC_UPDATEUI, [this](auto& e) {
+	m_DisamSource = new AssemblyEditCtrl;
+	m_DisamSource->Bind(wxEVT_STC_UPDATEUI, [this](auto& e) {
 		m_HexViewActive = false;
-		Enable(wxID_COPY, m_DisamSource.CanCopy());
+		Enable(wxID_COPY, m_DisamSource->CanCopy());
 		Enable(wxID_UNDO, false);
 		Enable(wxID_REDO, false);
 		Enable(wxID_CUT, false);
@@ -207,9 +209,9 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 		Enable(wxID_CLEAR, false);
 		});
 
-	m_DisamSource.Bind(wxEVT_STC_MARGINCLICK, [this](auto& e) {
+	m_DisamSource->Bind(wxEVT_STC_MARGINCLICK, [this](auto& e) {
 		if (e.GetMargin() == 1) {
-			ToggleBreakpoint(m_DisamSource.LineFromPosition(e.GetPosition()));
+			ToggleBreakpoint(m_DisamSource->LineFromPosition(e.GetPosition()));
 		}
 		});
 
@@ -220,14 +222,14 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	//
 	// build right pane
 	//
-	m_DisamSource.Create(&m_HSplitter, wxID_ANY);
-	m_DisamSource.Init();
-	m_DisamSource.SetReadOnly(true);
+	m_DisamSource->Create(m_HSplitter, wxID_ANY);
+	m_DisamSource->Init();
+	m_DisamSource->SetReadOnly(true);
 
-	m_Splitter.SplitVertically(&m_AsmSource, &m_HSplitter, 500);
-	m_Notebook = new wxNotebook(&m_HSplitter, wxID_ANY);
-	m_HSplitter.SplitHorizontally(&m_DisamSource, m_Notebook, 400);
-	m_AsmSource.SetFocus();
+	m_Splitter->SplitVertically(m_AsmSource, m_HSplitter, 500);
+	m_Notebook = new wxNotebook(m_HSplitter, wxID_ANY);
+	m_HSplitter->SplitHorizontally(m_DisamSource, m_Notebook, 400);
+	m_AsmSource->SetFocus();
 
 	// create tabs
 	m_ImageList.Create(16, 16);
@@ -364,7 +366,7 @@ void MainFrame::Run(wxCommandEvent& e) {
 		case EmulatorState::Breakpoint:
 		{
 			auto& bp = m_Breakpoints[m_BreakpointAddress];
-			m_DisamSource.IndicatorClearRange(m_DisamSource.PositionFromLine(bp.Line), m_DisamSource.LineLength(bp.Line));
+			m_DisamSource->IndicatorClearRange(m_DisamSource->PositionFromLine(bp.Line), m_DisamSource->LineLength(bp.Line));
 			::SetEvent(m_hContinueEvent.get());
 		}
 			break;
@@ -374,7 +376,7 @@ void MainFrame::Run(wxCommandEvent& e) {
 void MainFrame::Stop(wxCommandEvent& e) {
 	if (m_BreakpointAddress) {
 		auto& bp = m_Breakpoints[m_BreakpointAddress];
-		m_DisamSource.IndicatorClearRange(m_DisamSource.PositionFromLine(bp.Line), m_DisamSource.LineLength(bp.Line));
+		m_DisamSource->IndicatorClearRange(m_DisamSource->PositionFromLine(bp.Line), m_DisamSource->LineLength(bp.Line));
 	}
 	switch (m_EmulatorState) {
 		case EmulatorState::Running:
@@ -393,7 +395,7 @@ void MainFrame::Stop(wxCommandEvent& e) {
 }
 
 void MainFrame::ToggleBreakpoint(wxCommandEvent& e) {
-	auto line = m_DisamSource.GetCurrentLine();
+	auto line = m_DisamSource->GetCurrentLine();
 	ToggleBreakpoint(line);
 }
 
@@ -403,7 +405,7 @@ void MainFrame::ToggleBreakpoint(int line) {
 		return;
 	}
 
-	if (m_DisamSource.ToggleBreakpoint(line)) {
+	if (m_DisamSource->ToggleBreakpoint(line)) {
 		BreakpointInfo bp;
 		bp.Address = m_Instructions[line].Address;
 		bp.Line = line;
@@ -484,9 +486,9 @@ void MainFrame::DoSaveAs(wxCommandEvent&) {
 	wxFileDialog dlg(this, L"Save Assembly file", wxEmptyString, wxEmptyString,
 		L"Assembly files (*.asm)|*.asm|All files (*.*)|*.*", wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
 	if (dlg.ShowModal() == wxID_OK) {
-		m_AsmSource.SaveFile(dlg.GetPath());
+		m_AsmSource->SaveFile(dlg.GetPath());
 		m_FileName = dlg.GetPath();
-		m_AsmSource.SetModified(false);
+		m_AsmSource->SetModified(false);
 	}
 }
 
@@ -561,12 +563,12 @@ void MainFrame::Assemble(const wxString& text) {
 	assembler->SetValue("address", std::wcstoll(m_AddressText->GetValue().ToStdWstring().c_str(), nullptr, 0));
 
 	AssemblerResults results;
-	results = assembler->Assemble(m_AsmSource.GetText().utf8_string());
+	results = assembler->Assemble(m_AsmSource->GetText().utf8_string());
 
 	if (results.Error) {
-		m_DisamSource.SetReadOnly(false);
-		m_DisamSource.SetText(results.Output);
-		m_DisamSource.SetReadOnly(true);
+		m_DisamSource->SetReadOnly(false);
+		m_DisamSource->SetText(results.Output);
+		m_DisamSource->SetReadOnly(true);
 		m_AsmBytes.clear();
 		m_Instructions.clear();
 		Enable(wxID_RUN, false);
@@ -585,17 +587,17 @@ void MainFrame::Disassemble(uint8_t const* data, size_t size) {
 	CapstoneEngine cs;
 	if (cs.Open((cs_mode)mode)) {
 		m_Instructions = cs.Disassemble(data, size, std::wcstoll(m_AddressText->GetValue().ToStdWstring().c_str(), nullptr, 0));
-		m_DisamSource.SetReadOnly(false);
-		m_DisamSource.ClearAll();
+		m_DisamSource->SetReadOnly(false);
+		m_DisamSource->ClearAll();
 		for (auto& insn : m_Instructions) {
-			m_DisamSource.AppendText(wxString::Format("0x%08X %-8s %-24s ;",
+			m_DisamSource->AppendText(wxString::Format("0x%08X %-8s %-24s ;",
 				(DWORD)insn.Address, insn.Mnemonic, insn.Operands));
 			for (auto b : insn.Bytes) {
-				m_DisamSource.AppendText(wxString::Format(L" %02X", b));
+				m_DisamSource->AppendText(wxString::Format(L" %02X", b));
 			}
-			m_DisamSource.AppendText(L"\n");
+			m_DisamSource->AppendText(L"\n");
 		}
-		m_DisamSource.SetReadOnly(true);
+		m_DisamSource->SetReadOnly(true);
 		if (!m_Instructions.empty()) {
 			Enable(wxID_RUN, true);
 			m_Emulator.Open(CpuArch::x86, (CpuMode)mode);

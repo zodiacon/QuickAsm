@@ -53,10 +53,12 @@ private:
 		bool IsEnabled : 1{ true };
 	};
 
-	wxSplitterWindow m_Splitter, m_HSplitter;
+	wxSplitterWindow* m_Splitter;
+	wxSplitterWindow* m_HSplitter;
 	wxNotebook* m_Notebook;
 	wxListView m_RegistersList;
-	AssemblyEditCtrl m_AsmSource, m_DisamSource;
+	AssemblyEditCtrl* m_AsmSource;
+	AssemblyEditCtrl* m_DisamSource;
 	wxTextCtrl* m_AddressText;
 	wxMenuBar* m_MenuBar;
 	wxHexView* m_MemoryView;
