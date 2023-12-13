@@ -51,6 +51,7 @@ private:
 		size_t Address;
 		int Line;
 		bool IsEnabled : 1{ true };
+		bool OneShot : 1{ false };
 	};
 
 	wxSplitterWindow* m_Splitter;
@@ -77,6 +78,7 @@ private:
 	std::vector<uint8_t> m_Memory;
 	wil::unique_handle m_hContinueEvent, m_hStopEvent;
 	std::atomic<uint64_t> m_BreakpointAddress{ 0 };
+	std::atomic<int> m_CurrentLine{ 0 };
 	bool m_Modified{ false };
 	bool m_HexViewActive{ false };
 };

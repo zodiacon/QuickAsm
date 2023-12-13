@@ -6,8 +6,6 @@ wxBitmapBundle LocalArtProvider::CreateBitmapBundle(const wxArtID& id, const wxA
         wxArtID id;
         wxString icon;
     } iconsMap[] = {
-        { "BUILD", "BUILD" },
-        { "BINARY", "BINARY" },
         { wxART_FILE_OPEN, "OPEN" },
         { wxART_UNDO, "UNDO" },
         { wxART_REDO, "REDO" },
@@ -16,16 +14,7 @@ wxBitmapBundle LocalArtProvider::CreateBitmapBundle(const wxArtID& id, const wxA
         { wxART_FILE_SAVE, "SAVE" },
         { wxART_FILE_SAVE_AS, "SAVEAS" },
         { wxART_PASTE, "PASTE" },
-        { "16BIT", "16BIT" },
-		{ "32BIT", "32BIT" },
-		{ "64BIT", "64BIT" },
-		{ "8BIT", "8BIT" },
-		{ "ASMFILE", "ASMFILE" },
-		{ "ASMSTUDIO", "ASMSTUDIO" },
-        { "RUN", "RUN" },
-		{ "STOP", "STOP" },
         { wxART_EDIT, "EDIT" },
-        { "BREAKPOINT", "BREAKPOINT" },
     };
 
     for (auto& icon : iconsMap) {
@@ -35,6 +24,6 @@ wxBitmapBundle LocalArtProvider::CreateBitmapBundle(const wxArtID& id, const wxA
         }
     }
 
-    return wxBitmapBundle();
+    return wxBitmapBundle::FromIconBundle(wxIconBundle(id, nullptr));
 }
 

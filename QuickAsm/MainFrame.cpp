@@ -20,9 +20,12 @@ enum {
 	wxID_32BITREG,
 	wxID_64BITREG,
 	wxID_RUN,
+	wxID_STEPOVER,
+	wxID_STEPINTO,
 	wxID_DARKTHEME,
 	wxID_TOGGLEBP = wxID_DARKTHEME + 3,
 	wxID_DELETEALL_BP,
+	wxID_1BYTE,
 };
 
 MainFrame::MainFrame() {
@@ -161,8 +164,12 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	tb->AddControl(m_AddressText = new wxTextCtrl(tb, wxID_ANY, "0x1000", wxDefaultPosition, wxSize(100, -1), wxTE_RIGHT));
 	tb->AddSeparator();
 	tb->AddTool(wxID_ASSEMBLE, L"Assemble", wxArtProvider::GetIcon(L"BUILD", wxART_TOOLBAR, size))->Enable(false);
+	tb->AddSeparator();
 	tb->AddTool(wxID_RUN, L"Run", wxArtProvider::GetIcon(L"RUN", wxART_TOOLBAR, size))->Enable(false);
 	tb->AddTool(wxID_STOP, L"", wxArtProvider::GetIcon("STOP", wxART_TOOLBAR, size))->Enable(false);
+	tb->AddSeparator();
+	tb->AddTool(wxID_STEPOVER, L"", wxArtProvider::GetIcon("STEPOVER", wxART_TOOLBAR, size))->Enable(false);
+	tb->AddTool(wxID_STEPINTO, L"", wxArtProvider::GetIcon("STEPINTO", wxART_TOOLBAR, size))->Enable(false);
 	tb->AddSeparator();
 	tb->AddTool(wxID_TOGGLEBP, L"", wxArtProvider::GetIcon("BREAKPOINT", wxART_TOOLBAR, size))->Enable(false);
 	tb->Realize();
@@ -218,6 +225,16 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	Bind(wxEVT_MENU, [this](auto& e) { Run(e); }, wxID_RUN);
 	Bind(wxEVT_MENU, [this](auto& e) { Stop(e); }, wxID_STOP);
 	Bind(wxEVT_MENU, [this](auto& e) { ToggleBreakpoint(e); }, wxID_TOGGLEBP);
+	Bind(wxEVT_MENU, [this](auto& e) {
+		if(m_EmulatorState == EmulatorState::Idle)
+			m_CurrentLine = -1;
+		BreakpointInfo bp;
+		bp.Address = m_Instructions[m_CurrentLine + 1].Address;
+		bp.Line = m_CurrentLine + 1;
+		bp.OneShot = true;
+		m_Breakpoints.insert({ bp.Address, bp });
+		Run(e);
+		}, wxID_STEPOVER);
 
 	//
 	// build right pane
@@ -295,7 +312,17 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	m_MemoryView->SetFont(*font);
 	m_MemoryView->InitSharedBuffer(m_Memory.data(), (ULONG)m_Memory.size());
 
+	tb = new wxToolBar(panel, wxID_ANY);
+	tb->AddRadioTool(wxID_1BYTE, wxEmptyString, wxArtProvider::GetIcon(L"1BYTE", wxART_TOOLBAR))->Toggle(true);
+	tb->AddRadioTool(wxID_1BYTE + 1, wxEmptyString, wxArtProvider::GetIcon(L"2BYTES", wxART_TOOLBAR));
+	tb->AddRadioTool(wxID_1BYTE + 2, wxEmptyString, wxArtProvider::GetIcon(L"4BYTES", wxART_TOOLBAR));
+	tb->AddRadioTool(wxID_1BYTE + 3, wxEmptyString, wxArtProvider::GetIcon(L"8BYTES", wxART_TOOLBAR));
+	tb->Realize();
+
+
+
 	sizer = new wxBoxSizer(wxVERTICAL);
+	sizer->Add(tb, 0, wxTOP);
 	sizer->Add(m_MemoryView, 1, wxEXPAND);
 	panel->SetSizer(sizer);
 	m_Notebook->AddPage(panel, L"Memory", false, 1);
@@ -329,21 +356,21 @@ void MainFrame::ShowRegisters() {
 }
 
 void MainFrame::RunOnThreadPool() {
-	if (!m_Breakpoints.empty()) {
-		m_Emulator.HookCode(HookType::CODE, [&](auto address, auto) {
-			if (m_Breakpoints.contains(address)) {
-				::PostMessage(GetHandle(), UINT(EmulatorMessage::BreakpointHit), 0, address);
-				m_BreakpointAddress = address;
-				HANDLE hEvents[] = { m_hContinueEvent.get(), m_hStopEvent.get() };
-				auto rc = ::WaitForMultipleObjects(_countof(hEvents), hEvents, FALSE, INFINITE);
-				if (rc == WAIT_OBJECT_0)
-					return;
+	m_Emulator.HookCode(HookType::CODE, [&](auto address, auto) {
+		m_CurrentLine++;
+		if (auto it = m_Breakpoints.find(address); it != m_Breakpoints.end()) {
+			auto& bp = it->second;
+			::PostMessage(GetHandle(), UINT(EmulatorMessage::BreakpointHit), 0, address);
+			m_BreakpointAddress = address;
+			HANDLE hEvents[] = { m_hContinueEvent.get(), m_hStopEvent.get() };
+			auto rc = ::WaitForMultipleObjects(_countof(hEvents), hEvents, FALSE, INFINITE);
+			if (rc == WAIT_OBJECT_0)
+				return;
 
-				m_Emulator.Stop();
-				::PostMessage(this->GetHandle(), UINT(EmulatorMessage::RunComplete), 0, 0);
-			}
-			}, m_Instructions[0].Address, m_Instructions[0].Address + m_AsmBytes.size());
-	}
+			m_Emulator.Stop();
+			::PostMessage(this->GetHandle(), UINT(EmulatorMessage::RunComplete), 0, 0);
+		}
+		}, m_Instructions[0].Address, m_Instructions[0].Address + m_AsmBytes.size());
 	auto ok = m_Emulator.Start(m_Instructions[0].Address, m_Instructions[0].Address + m_AsmBytes.size());
 	assert(ok);
 	::PostMessage(this->GetHandle(), UINT(EmulatorMessage::RunComplete), 0, 0);
@@ -354,6 +381,7 @@ void MainFrame::Run(wxCommandEvent& e) {
 	switch (m_EmulatorState) {
 		case EmulatorState::Idle:
 			m_BreakpointAddress = 0;
+			m_CurrentLine = -1;
 			Enable(wxID_STOP, true);
 			Enable(wxID_RUN, false);
 			Enable(wxID_ASSEMBLE, false);
@@ -367,9 +395,12 @@ void MainFrame::Run(wxCommandEvent& e) {
 		{
 			auto& bp = m_Breakpoints[m_BreakpointAddress];
 			m_DisamSource->IndicatorClearRange(m_DisamSource->PositionFromLine(bp.Line), m_DisamSource->LineLength(bp.Line));
+			if (bp.OneShot)
+				m_Breakpoints.erase(bp.Address);
 			::SetEvent(m_hContinueEvent.get());
+
 		}
-			break;
+		break;
 	}
 }
 
@@ -477,7 +508,6 @@ void MainFrame::DoSortRegisters(int col, bool asc) {
 
 }
 
-
 void MainFrame::Disassemble(std::vector<uint8_t> const& bytes) {
 	Disassemble(bytes.data(), bytes.size());
 }
@@ -526,13 +556,15 @@ void MainFrame::CreateMenu() {
 	item->SetBitmap(wxArtProvider::GetIcon(L"BUILD", wxART_MENU, size));
 	asmMenu->AppendSeparator();
 	item = asmMenu->Append(wxID_RUN, _("&Run\tF5"));
-	item->Enable(false);
 	item->SetBitmap(wxArtProvider::GetIcon(L"RUN", wxART_MENU, size));
 	item = asmMenu->Append(wxID_STOP, _("&Stop\tShift+F5"));
-	item->Enable(false);
 	item->SetBitmap(wxArtProvider::GetIcon(L"STOP", wxART_MENU, size));
 	asmMenu->AppendSeparator();
-	asmMenu->Append(wxID_TOGGLEBP, L"Toggle Breakpoint\tF9")->Enable(false);
+	asmMenu->Append(wxID_STEPOVER, L"Step Over\tF10")->SetBitmap(wxArtProvider::GetIcon(L"STEPOVER", wxART_MENU, size));
+	asmMenu->Append(wxID_STEPINTO, L"Step Into\tF11")->SetBitmap(wxArtProvider::GetIcon(L"STEPINTO", wxART_MENU, size));;
+	asmMenu->AppendSeparator();
+	item = asmMenu->Append(wxID_TOGGLEBP, L"Toggle Breakpoint\tF9");
+	item->SetBitmap(wxArtProvider::GetIcon(L"BREAKPOINT", wxART_MENU, size));
 
 	auto options = new wxMenu;
 	auto dark = wxSystemSettings::GetAppearance().IsDark();
@@ -572,6 +604,8 @@ void MainFrame::Assemble(const wxString& text) {
 		m_AsmBytes.clear();
 		m_Instructions.clear();
 		Enable(wxID_RUN, false);
+		Enable(wxID_STEPOVER, false);
+		Enable(wxID_STEPINTO, false);
 	}
 	else {
 		if (results.Bytes.empty())
@@ -599,7 +633,6 @@ void MainFrame::Disassemble(uint8_t const* data, size_t size) {
 		}
 		m_DisamSource->SetReadOnly(true);
 		if (!m_Instructions.empty()) {
-			Enable(wxID_RUN, true);
 			m_Emulator.Open(CpuArch::x86, (CpuMode)mode);
 			m_Emulator.MapHostMemory(0, m_Memory.size(), MemProtection::All, m_Memory.data());
 			m_Emulator.WriteMemory(m_Instructions[0].Address, data, size);
@@ -608,6 +641,10 @@ void MainFrame::Disassemble(uint8_t const* data, size_t size) {
 
 			ShowRegisters();
 			Enable(wxID_TOGGLEBP, true);
+			Enable(wxID_RUN, true);
+			Enable(wxID_STEPOVER, true);
+			Enable(wxID_STEPINTO, true);
+			m_Breakpoints.clear();
 		}
 	}
 }
