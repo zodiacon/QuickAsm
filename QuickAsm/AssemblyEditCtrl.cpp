@@ -44,7 +44,7 @@ static const char* KeyWords_ASM[] = {
 	".sfcond .stack .startup .tfcond .type .until .untilcxz .while .xall .xcref .xlist absolute alias align "
 	"alignb assume at bits catstr comm comment common cpu db dd df dosseg dq dt dup dw echo else elseif "
 	"elseif1 elseif2 elseifb elseifdef elseifdif elseifdifi elseife elseifidn elseifidni elseifnb elseifndef "
-	"end endif endm endp ends endstruc eq equ even exitm export extern externdef extrn for forc ge global goto "
+	"end endif endm endp ends endstruc eq equ default even exitm export extern externdef extrn for forc ge global goto "
 	"group gt high highword iend if if1 if2 ifb ifdef ifdif ifdifi ife ifidn ifidni ifnb ifndef import incbin "
 	"include includelib instr invoke irp irpc istruc label le length lengthof local low lowword lroffset lt "
 	"macro mask mod name ne offset opattr option org page popcontext proc proto ptr public purge pushcontext "
@@ -105,7 +105,7 @@ void AssemblyEditCtrl::Init() {
 	SetMarginBackground(1, RGB(128, 128, 128));
 
 	SetMarginWidth(0, 30);
-	SetMarginWidth(1, 20);
+	SetMarginWidth(1, 26);
 	SetLexer(wxSTC_LEX_ASM);
 	wxFont font(wxFontInfo(12).FaceName("Consolas"));
 	StyleSetFont(wxSTC_STYLE_DEFAULT, font);
@@ -118,7 +118,7 @@ void AssemblyEditCtrl::Init() {
 	StyleSetForeground(wxSTC_ASM_NUMBER, dark ? "CYAN" : "PURPLE");
 	StyleSetForeground(wxSTC_ASM_REGISTER, dark ? "WHITE" : "BLACK");
 	StyleSetBold(wxSTC_ASM_REGISTER, true);
-	StyleSetForeground(wxSTC_ASM_STRING, "#800000");
+	StyleSetForeground(wxSTC_ASM_STRING, dark ? "#C08000" : "#800000");
 	StyleSetForeground(wxSTC_ASM_COMMENT, dark ? "GREEN" : "#008000");
 	StyleSetForeground(wxSTC_ASM_CPUINSTRUCTION, dark ? "YELLOW" : "BLUE");
 	StyleSetBold(wxSTC_ASM_CPUINSTRUCTION, true);

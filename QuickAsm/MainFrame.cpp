@@ -9,6 +9,8 @@
 #include "HexViewPanel.h"
 #include <wx/config.h>
 #include "App.h"
+#include <CommCtrl.h>
+#include <uxtheme.h>
 
 enum {
 	wxID_ASSEMBLE = wxID_HIGHEST + 1,
@@ -35,7 +37,7 @@ MainFrame::MainFrame() {
 
 	auto handler = [this](auto& e) {
 		auto focus = FindFocus();
-		if (focus == m_AsmSource) {
+		if (focus == m_AsmSource || focus == m_DisamSource) {
 			focus->GetEventHandler()->ProcessEventLocally(e);
 		}
 		else if (m_HexViewActive) {
@@ -112,6 +114,7 @@ LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
 			Enable(wxID_STOP, false);
 			Enable(wxID_ASSEMBLE, true);
 			UpdateEmulatorState();
+			SetStatusText(L"Idle", 1);
 			break;
 
 		case EmulatorMessage::BreakpointHit:
@@ -122,6 +125,7 @@ LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
 			m_DisamSource->IndicatorFillRange(m_DisamSource->PositionFromLine(bp.Line), m_DisamSource->LineLength(bp.Line));
 			UpdateEmulatorState();
 			Enable(wxID_RUN, true);
+			SetStatusText(wxString::Format(L"Breakpoint Line %d (0x%llX)", bp.Line + 1, bp.Address), 1);
 			break;
 	}
 	return wxFrame::MSWWindowProc(msg, wParam, lParam);
@@ -134,7 +138,10 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	SetIcon(wxICON(0APP));
 
 	CreateMenu();
-	CreateStatusBar(2);
+	CreateStatusBar(3);
+	int widths[] = { 200, 200, -1 };
+	SetStatusWidths(3, widths);
+	SetStatusText(L"Idle", 1);
 
 	auto tb = CreateToolBar(wxTB_HORZ_LAYOUT | wxTB_HORIZONTAL | wxTB_TEXT);
 	wxSize size(24, 24);
@@ -268,6 +275,11 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	tb->AddTool(wxID_EDIT, wxEmptyString, wxArtProvider::GetIcon(wxART_EDIT, wxART_TOOLBAR));
 	tb->Realize();
 
+	Bind(wxEVT_MENU, [this](auto& e) {
+		if(m_RegistersList.GetFirstSelected() >= 0) 
+			EditRegisterValue(m_RegistersList.GetFirstSelected());
+		}, wxID_EDIT);
+
 	m_RegistersList.Create(frame, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxLC_REPORT | wxLC_SINGLE_SEL);
 	auto sizer = new wxBoxSizer(wxVERTICAL);
 	sizer->Add(tb, 0, wxALIGN_TOP | wxEXPAND);
@@ -279,6 +291,13 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	m_RegistersList.InsertColumn(2, L"Value", wxLIST_FORMAT_RIGHT, 150);
 	m_RegistersList.InsertColumn(3, L"Type", wxLIST_FORMAT_LEFT);
 	m_RegistersList.InsertColumn(4, L"Details", wxLIST_FORMAT_LEFT, 200);
+
+	m_RegistersList.Bind(wxEVT_LIST_ITEM_ACTIVATED, [this](auto& e) {
+		auto index = e.GetIndex();
+		if (index < 0)
+			return;
+		EditRegisterValue(index);
+		});
 
 	m_RegistersList.Bind(wxEVT_LIST_COL_CLICK, [this](auto& e) {
 		auto col = e.GetColumn();
@@ -376,6 +395,24 @@ void MainFrame::RunOnThreadPool() {
 	::PostMessage(this->GetHandle(), UINT(EmulatorMessage::RunComplete), 0, 0);
 }
 
+bool MainFrame::EditRegisterValue(int index) {
+	auto id = m_RegistersList.GetItemData(index);
+	auto& ri = AllRegisters[id];
+	if ((ri.Category & (RegisterType::General | RegisterType::Segment)) == RegisterType::None) {
+		wxASSERT(false);
+		return false;
+	}
+
+	auto text = wxGetTextFromUser(L"New value:", L"Value for register " + ri.Name, m_RegistersList.GetItemText(index, 2), this);
+	if (text.IsEmpty())
+		return false;
+
+	auto value = wcstoull(text.ToStdWstring().c_str(), nullptr, 0);
+	m_Emulator.WriteReg(ri.Id, value);
+	UpdateEmulatorState();
+	return true;
+}
+
 void MainFrame::Run(wxCommandEvent& e) {
 	assert(m_Emulator.IsOpen());
 	switch (m_EmulatorState) {
@@ -398,10 +435,10 @@ void MainFrame::Run(wxCommandEvent& e) {
 			if (bp.OneShot)
 				m_Breakpoints.erase(bp.Address);
 			::SetEvent(m_hContinueEvent.get());
-
 		}
 		break;
 	}
+	SetStatusText(L"Running", 1);
 }
 
 void MainFrame::Stop(wxCommandEvent& e) {
@@ -423,6 +460,7 @@ void MainFrame::Stop(wxCommandEvent& e) {
 			::SetEvent(m_hStopEvent.get());
 			break;
 	}
+	SetStatusText(L"Idle", 1);
 }
 
 void MainFrame::ToggleBreakpoint(wxCommandEvent& e) {

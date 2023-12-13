@@ -11,8 +11,7 @@ enum class RegisterType {
 	SSE =			0x00008000,
 	Special =		0x00010000,
 	Control =		0x00020000,
-	Index =			0x00040000,
-	Descriptor =	0x00080000,
+	Descriptor =	0x00040000,
 
 	Bits16 = CS_MODE_16,
 	Bits32 = CS_MODE_32,

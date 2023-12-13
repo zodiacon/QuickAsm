@@ -35,6 +35,7 @@ private:
 	void DoSortRegisters(int col, bool asc);
 	void RunOnThreadPool();
 	bool OnHexViewNotify(wxHexView* pHexView, int idCtrl, LPNMHDR hdr, WXLPARAM* result) override;
+	bool EditRegisterValue(int row);
 
 	enum class EmulatorState {
 		Idle,

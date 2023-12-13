@@ -27,7 +27,6 @@ PCWSTR Helpers::RegisterTypeToString(RegisterType type) {
     } types[] = {
         { RegisterType::General, L"General" },
         { RegisterType::Segment, L"Segment" },
-        { RegisterType::Index, L"Index" },
         { RegisterType::Special, L"Special" },
         { RegisterType::FloatingPoint, L"Float" },
         { RegisterType::SSE, L"SSE" },

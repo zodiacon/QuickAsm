@@ -51,13 +51,13 @@ const std::vector<RegisterInfo> AllRegisters {
 	{ "FS", 16, x86Register::FS, RegisterType::Segment | RegisterType::Bits32 | RegisterType::Bits64 },
 	{ "GS", 16, x86Register::GS, RegisterType::Segment | RegisterType::Bits32 | RegisterType::Bits64 },
 
-	{ "SI", 16,   x86Register::SI, RegisterType::Index | RegisterType::AllBits, x86Register::ESI, 0 },
-	{ "ESI", 32,  x86Register::ESI, RegisterType::Index | RegisterType::Bits64 | RegisterType::Bits32, x86Register::RSI, 0 },
-	{ "RSI", 64,  x86Register::RSI, RegisterType::Index | RegisterType::Bits64 },
+	{ "SI", 16,   x86Register::SI, RegisterType::General | RegisterType::AllBits, x86Register::ESI, 0 },
+	{ "ESI", 32,  x86Register::ESI, RegisterType::General | RegisterType::Bits64 | RegisterType::Bits32, x86Register::RSI, 0 },
+	{ "RSI", 64,  x86Register::RSI, RegisterType::General | RegisterType::Bits64 },
 
-	{ "DI", 16,   x86Register::DI, RegisterType::Index | RegisterType::AllBits, x86Register::ESI, 0 },
-	{ "EDI", 32,  x86Register::EDI, RegisterType::Index | RegisterType::Bits64 | RegisterType::Bits32, x86Register::RDI, 0 },
-	{ "RDI", 64,  x86Register::RDI, RegisterType::Index | RegisterType::Bits64 },
+	{ "DI", 16,   x86Register::DI, RegisterType::General | RegisterType::AllBits, x86Register::ESI, 0 },
+	{ "EDI", 32,  x86Register::EDI, RegisterType::General | RegisterType::Bits64 | RegisterType::Bits32, x86Register::RDI, 0 },
+	{ "RDI", 64,  x86Register::RDI, RegisterType::General | RegisterType::Bits64 },
 
 	{ "R8", 64,  x86Register::R8, RegisterType::General | RegisterType::Bits64 },
 	{ "R9", 64,  x86Register::R9, RegisterType::General | RegisterType::Bits64 },
