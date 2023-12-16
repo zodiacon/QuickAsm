@@ -2,6 +2,8 @@
 #include "AssemblyEditCtrl.h"
 #include <wx/fdrepdlg.h>
 
+wxIMPLEMENT_DYNAMIC_CLASS(AssemblyEditCtrl, wxStyledTextCtrl);
+
 static const char* KeyWords_ASM[] = {
 	"aaa aad aam aas adc add and arpl blsr bnd bndcl bndcn bndcu bndmov bndstx bound bsf bsr bswap bt btc btr bts call cbw cdq cflush clc cld cli clts "
 	"cmc cmova cmovae cmovb cmovbe cmovc cmove cmovg cmovge cmovl cmovle cmovna cmovnae cmovnb cmovnbe cmovnc "

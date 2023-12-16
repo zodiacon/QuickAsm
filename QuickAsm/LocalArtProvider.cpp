@@ -1,20 +1,22 @@
 #include "pch.h"
 #include "LocalArtProvider.h"
+#include "resource.h"
 
 wxBitmapBundle LocalArtProvider::CreateBitmapBundle(const wxArtID& id, const wxArtClient& client, const wxSize& size) {
     static const struct {
         wxArtID id;
         wxString icon;
     } iconsMap[] = {
-        { wxART_FILE_OPEN, "OPEN" },
-        { wxART_UNDO, "UNDO" },
-        { wxART_REDO, "REDO" },
-        { wxART_COPY, "COPY" },
-        { wxART_CUT, "CUT" },
-        { wxART_FILE_SAVE, "SAVE" },
-        { wxART_FILE_SAVE_AS, "SAVEAS" },
-        { wxART_PASTE, "PASTE" },
-        { wxART_EDIT, "EDIT" },
+        { wxART_FILE_OPEN, L"OPEN" },
+        { wxART_UNDO, L"UNDO" },
+        { wxART_REDO, L"REDO" },
+        { wxART_COPY, L"COPY" },
+        { wxART_CUT, L"CUT" },
+        { wxART_FILE_SAVE, L"SAVE" },
+        { wxART_FILE_SAVE_AS, L"SAVEAS" },
+        { wxART_PASTE, L"PASTE" },
+        { wxART_EDIT, L"EDIT" },
+        { "RESTART", wxString::Format("#%d", IDI_RESTART) },
     };
 
     for (auto& icon : iconsMap) {

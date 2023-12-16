@@ -7,7 +7,9 @@ struct IHexViewNotify abstract {
 };
 
 class HexViewPanel : public wxPanel {
+	wxDECLARE_DYNAMIC_CLASS(HexViewPanel);
 public:
+	HexViewPanel() = default;
 	HexViewPanel(wxWindow* parent, IHexViewNotify* pNotify = nullptr);
 	bool MSWOnNotify(int idCtrl, WXLPARAM lParam, WXLPARAM* result) override;
 	LRESULT MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) override;

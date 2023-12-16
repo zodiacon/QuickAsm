@@ -157,8 +157,22 @@ size_t HexView::FormatHexUnit(BYTE *data, TCHAR *buf, size_t buflen)
 	switch(m_nControlStyles & HVS_FORMAT_MASK)
 	{
 	case HVS_FORMAT_HEX:
-		szFmt = CheckStyle( HVS_LOWERCASEHEX ) ? _T("%02x") : _T("%02X");
-		return _stprintf(buf, szFmt, data[0]);
+		switch (m_nBytesPerColumn) {
+			case 1:	
+				szFmt = CheckStyle(HVS_LOWERCASEHEX) ? _T("%02x") : _T("%02X");
+				return _stprintf(buf, szFmt, data[0]);
+			case 2:
+				szFmt = CheckStyle(HVS_LOWERCASEHEX) ? _T("%04x") : _T("%04X");
+				return _stprintf(buf, szFmt, *(unsigned short*)data);
+			case 4:
+				szFmt = CheckStyle(HVS_LOWERCASEHEX) ? _T("%08x") : _T("%08X");
+				return _stprintf(buf, szFmt, *(unsigned*)data);
+			case 8:
+				szFmt = CheckStyle(HVS_LOWERCASEHEX) ? _T("%016x") : _T("%016X");
+				return _stprintf(buf, szFmt, *(unsigned __int64*)data);
+
+		}
+		break;
 
 	case HVS_FORMAT_DEC:
 		return _stprintf(buf, _T("%03d"), data[0]);
@@ -290,7 +304,7 @@ size_t HexView::FormatLine(
 
 		AddAttr(&attrPtr, GetHexColour(HVC_ADDRESS), GetHexColour(HVC_BACKGROUND), m_nHexPaddingLeft);
 
-		for(i = 0; i < (int)length/* m_nBytesPerLine*/; i++)
+		for(i = 0; i < (int)length/* m_nBytesPerLine*/; i += m_nBytesPerColumn)
 		{
 			HEXCOL col1, col2;
 
@@ -315,7 +329,7 @@ size_t HexView::FormatLine(
 			{
 				AddAttr(&attrPtr, col1.colFG, col1.colBG, len);
 
-				if((i+1) % (m_nBytesPerColumn) == 0 && (i < length/*m_nBytesPerLine*/ - 1))
+				if(true || (i+1) % (m_nBytesPerColumn) == 0 && (i < length/*m_nBytesPerLine*/ - 1))
 				{
 					*ptr++ = ' ';
 					AddAttr(&attrPtr, col2.colFG, col2.colBG, 1);

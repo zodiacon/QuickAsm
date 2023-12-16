@@ -10,6 +10,7 @@ struct RegisterInfo;
 class wxHexView;
 
 class MainFrame : public wxFrame, public IHexViewNotify {
+	wxDECLARE_DYNAMIC_CLASS(MainFrame);
 public:
 	MainFrame();
 

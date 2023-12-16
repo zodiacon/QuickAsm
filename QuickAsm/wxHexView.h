@@ -1,7 +1,6 @@
 #pragma once
 
 #include "..\HexView\HexView.h"
-#include "../../Github/wxWidgets/include/wx/event.h"
 
 enum class HexViewStyles {
 	FormatHex = HVS_FORMAT_HEX,
@@ -71,7 +70,9 @@ enum class ColorType {
 };
 
 class wxHexView : public wxControl {
+	wxDECLARE_DYNAMIC_CLASS(wxHexView);
 public:
+	wxHexView() = default;
 	wxHexView(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition,
 		const wxSize& size = wxDefaultSize, long style = 0, const wxValidator& validator = wxDefaultValidator, const wxString& name = L"wxHexView");
 	bool Create(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition,

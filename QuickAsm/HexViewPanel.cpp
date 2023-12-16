@@ -3,6 +3,8 @@
 #include "wxHexView.h"
 #include "..\HexView\HexView.h"
 
+wxIMPLEMENT_DYNAMIC_CLASS(HexViewPanel, wxPanel);
+
 HexViewPanel::HexViewPanel(wxWindow* parent, IHexViewNotify* pNotify) : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize,
 	wxTAB_TRAVERSAL | wxNO_BORDER | wxCLIP_CHILDREN | wxWANTS_CHARS), m_pNotify(pNotify) {
 }

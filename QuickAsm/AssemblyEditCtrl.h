@@ -1,6 +1,8 @@
 #pragma once
 
 class AssemblyEditCtrl : public wxStyledTextCtrl {
+    wxDECLARE_DYNAMIC_CLASS(AssemblyEditCtrl);
+
 public:
     AssemblyEditCtrl();
     void Init();

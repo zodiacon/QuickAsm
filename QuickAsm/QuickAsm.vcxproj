@@ -201,7 +201,7 @@
     <ClCompile Include="wxHexView.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="wxWidgetsApp.rc" />
+    <ResourceCompile Include="QuickAsm.rc" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="App.ico" />
@@ -212,14 +212,28 @@
     <Image Include="Icons\asm.ico" />
     <Image Include="Icons\AsmStudio.ico" />
     <Image Include="Icons\binary.ico" />
+    <Image Include="Icons\breakpoint.ico" />
     <Image Include="Icons\build.ico" />
     <Image Include="Icons\copy.ico" />
     <Image Include="Icons\cut.ico" />
+    <Image Include="Icons\edit.ico" />
+    <Image Include="Icons\Memory.ico" />
+    <Image Include="Icons\number-1.ico" />
+    <Image Include="Icons\number-2.ico" />
+    <Image Include="Icons\number-4.ico" />
+    <Image Include="Icons\number-8.ico" />
     <Image Include="Icons\open.ico" />
     <Image Include="Icons\paste.ico" />
     <Image Include="Icons\redo.ico" />
+    <Image Include="Icons\registers.ico" />
+    <Image Include="Icons\Restart.ico" />
+    <Image Include="Icons\run.ico" />
     <Image Include="Icons\save.ico" />
     <Image Include="Icons\save_as.ico" />
+    <Image Include="Icons\stepinto.ico" />
+    <Image Include="Icons\stepout.ico" />
+    <Image Include="Icons\stepover.ico" />
+    <Image Include="Icons\stop.ico" />
     <Image Include="Icons\undo.ico" />
   </ItemGroup>
   <ItemGroup>

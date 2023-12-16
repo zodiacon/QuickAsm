@@ -9,8 +9,8 @@
 #include "HexViewPanel.h"
 #include <wx/config.h>
 #include "App.h"
-#include <CommCtrl.h>
-#include <uxtheme.h>
+
+wxIMPLEMENT_DYNAMIC_CLASS(MainFrame, wxFrame);
 
 enum {
 	wxID_ASSEMBLE = wxID_HIGHEST + 1,
@@ -22,6 +22,7 @@ enum {
 	wxID_32BITREG,
 	wxID_64BITREG,
 	wxID_RUN,
+	wxID_RESTART,
 	wxID_STEPOVER,
 	wxID_STEPINTO,
 	wxID_DARKTHEME,
@@ -139,7 +140,7 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 
 	CreateMenu();
 	CreateStatusBar(3);
-	int widths[] = { 200, 200, -1 };
+	int widths[] = { 200, 300, -1 };
 	SetStatusWidths(3, widths);
 	SetStatusText(L"Idle", 1);
 
@@ -174,6 +175,7 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	tb->AddSeparator();
 	tb->AddTool(wxID_RUN, L"Run", wxArtProvider::GetIcon(L"RUN", wxART_TOOLBAR, size))->Enable(false);
 	tb->AddTool(wxID_STOP, L"", wxArtProvider::GetIcon("STOP", wxART_TOOLBAR, size))->Enable(false);
+	tb->AddTool(wxID_RESTART, L"", wxArtProvider::GetIcon("RESTART", wxART_TOOLBAR, size))->Enable(false);
 	tb->AddSeparator();
 	tb->AddTool(wxID_STEPOVER, L"", wxArtProvider::GetIcon("STEPOVER", wxART_TOOLBAR, size))->Enable(false);
 	tb->AddTool(wxID_STEPINTO, L"", wxArtProvider::GetIcon("STEPINTO", wxART_TOOLBAR, size))->Enable(false);
@@ -266,13 +268,14 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	// create registers tab
 	//
 	auto frame = new wxPanel(m_Notebook);
+	size = wxSize(16, 16);
 	tb = new wxToolBar(frame, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTB_HORZ_LAYOUT | wxTB_HORIZONTAL | wxTB_NODIVIDER);
-	tb->AddCheckTool(wxID_8BITREG, wxEmptyString, wxArtProvider::GetIcon(L"8BIT", wxART_TOOLBAR));
-	tb->AddCheckTool(wxID_16BITREG, wxEmptyString, wxArtProvider::GetIcon(L"16BIT", wxART_TOOLBAR));
-	tb->AddCheckTool(wxID_32BITREG, wxEmptyString, wxArtProvider::GetIcon(L"32BIT", wxART_TOOLBAR))->Toggle(true);
-	tb->AddCheckTool(wxID_64BITREG, wxEmptyString, wxArtProvider::GetIcon(L"64BIT", wxART_TOOLBAR));
+	tb->AddCheckTool(wxID_8BITREG, wxEmptyString, wxArtProvider::GetIcon(L"8BIT", wxART_TOOLBAR, size));
+	tb->AddCheckTool(wxID_16BITREG, wxEmptyString, wxArtProvider::GetIcon(L"16BIT", wxART_TOOLBAR, size));
+	tb->AddCheckTool(wxID_32BITREG, wxEmptyString, wxArtProvider::GetIcon(L"32BIT", wxART_TOOLBAR, size))->Toggle(true);
+	tb->AddCheckTool(wxID_64BITREG, wxEmptyString, wxArtProvider::GetIcon(L"64BIT", wxART_TOOLBAR, size));
 	tb->AddSeparator();
-	tb->AddTool(wxID_EDIT, wxEmptyString, wxArtProvider::GetIcon(wxART_EDIT, wxART_TOOLBAR));
+	tb->AddTool(wxID_EDIT, wxEmptyString, wxArtProvider::GetIcon(wxART_EDIT, wxART_TOOLBAR, size));
 	tb->Realize();
 
 	Bind(wxEVT_MENU, [this](auto& e) {
@@ -337,7 +340,10 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	tb->AddRadioTool(wxID_1BYTE + 2, wxEmptyString, wxArtProvider::GetIcon(L"4BYTES", wxART_TOOLBAR));
 	tb->AddRadioTool(wxID_1BYTE + 3, wxEmptyString, wxArtProvider::GetIcon(L"8BYTES", wxART_TOOLBAR));
 	tb->Realize();
-
+	Bind(wxEVT_MENU, [this](auto& e) {
+		auto id = e.GetId() - wxID_1BYTE;
+		m_MemoryView->SetGrouping(1 << id);
+		}, wxID_1BYTE, wxID_1BYTE + 3);
 
 
 	sizer = new wxBoxSizer(wxVERTICAL);
