@@ -116,12 +116,12 @@ LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
 			Enable(wxID_ASSEMBLE, true);
 			UpdateEmulatorState();
 			SetStatusText(L"Idle", 1);
+			m_MemoryView->Refresh();
 			break;
 
 		case EmulatorMessage::BreakpointHit:
 			m_EmulatorState = EmulatorState::Breakpoint;
 			auto& bp = m_Breakpoints[lParam];
-			//m_DisamSource.SetCurrentPos(m_DisamSource.PositionFromLine(bp.Line));
 			m_DisamSource->SetIndicatorCurrent(2);
 			m_DisamSource->IndicatorFillRange(m_DisamSource->PositionFromLine(bp.Line), m_DisamSource->LineLength(bp.Line));
 			UpdateEmulatorState();
@@ -325,8 +325,8 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 		m_MemoryView->SetColor(ColorType::Background, 0x0E0E0E);
 		m_MemoryView->SetColor(ColorType::Hexodd, 0xF0F0F0);
 		m_MemoryView->SetColor(ColorType::Hexeven, 0xF0F0F0);
-		m_MemoryView->SetColor(ColorType::Address, 0xF0F0F0);
-		m_MemoryView->SetColor(ColorType::Ascii, 0xF0F0F0);
+		m_MemoryView->SetColor(ColorType::Address, 0x00F0F0);
+		m_MemoryView->SetColor(ColorType::Ascii, 0xF0F000);
 	}
 	panel->SetHexView(m_MemoryView);
 
