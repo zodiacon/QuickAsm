@@ -17,6 +17,7 @@
 #include <vector>
 #include <cassert>
 #include <memory>
+#include <map>
 
 #include <keystone/keystone.h>
 #include <capstone/capstone.h>

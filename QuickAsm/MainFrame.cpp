@@ -21,6 +21,7 @@ enum {
 	wxID_16BITREG,
 	wxID_32BITREG,
 	wxID_64BITREG,
+	wxID_FLOAT,
 	wxID_RUN,
 	wxID_RESTART,
 	wxID_STEPOVER,
@@ -109,14 +110,15 @@ MainFrame::MainFrame() {
 LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
 	switch (static_cast<EmulatorMessage>(msg)) {
 		case EmulatorMessage::RunComplete:
-			m_EmulatorState = EmulatorState::Idle;
 			m_Emulator.Stop();
+			m_Breakpoints.erase(m_Instructions[0].Address + m_AsmBytes.size());
 			Enable(wxID_RUN, true);
 			Enable(wxID_STOP, false);
 			Enable(wxID_ASSEMBLE, true);
 			UpdateEmulatorState();
 			SetStatusText(L"Idle", 1);
 			m_MemoryView->Refresh();
+			m_EmulatorState = EmulatorState::Idle;
 			break;
 
 		case EmulatorMessage::BreakpointHit:
@@ -126,7 +128,8 @@ LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
 			m_DisamSource->IndicatorFillRange(m_DisamSource->PositionFromLine(bp.Line), m_DisamSource->LineLength(bp.Line));
 			UpdateEmulatorState();
 			Enable(wxID_RUN, true);
-			SetStatusText(wxString::Format(L"Breakpoint Line %d (0x%llX)", bp.Line + 1, bp.Address), 1);
+			m_CurrentLine = bp.Line;
+			SetStatusText(wxString::Format(L"Breakpoint Line %d (0x%llX)", bp.Line, bp.Address), 1);
 			break;
 	}
 	return wxFrame::MSWWindowProc(msg, wParam, lParam);
@@ -135,11 +138,11 @@ LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
 void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	Unbind(wxEVT_CREATE, &MainFrame::OnCreate, this);
 
-	wxArtProvider::Push(new LocalArtProvider);
 	SetIcon(wxICON(0APP));
 
 	CreateMenu();
 	CreateStatusBar(3);
+
 	int widths[] = { 200, 300, -1 };
 	SetStatusWidths(3, widths);
 	SetStatusText(L"Idle", 1);
@@ -235,10 +238,8 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	Bind(wxEVT_MENU, [this](auto& e) { Stop(e); }, wxID_STOP);
 	Bind(wxEVT_MENU, [this](auto& e) { ToggleBreakpoint(e); }, wxID_TOGGLEBP);
 	Bind(wxEVT_MENU, [this](auto& e) {
-		if(m_EmulatorState == EmulatorState::Idle)
-			m_CurrentLine = -1;
 		BreakpointInfo bp;
-		bp.Address = m_Instructions[m_CurrentLine + 1].Address;
+		bp.Address = m_Instructions[m_CurrentLine].Address + m_Instructions[m_CurrentLine].Bytes.size();
 		bp.Line = m_CurrentLine + 1;
 		bp.OneShot = true;
 		m_Breakpoints.insert({ bp.Address, bp });
@@ -253,6 +254,7 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 	m_DisamSource->SetReadOnly(true);
 
 	m_Splitter->SplitVertically(m_AsmSource, m_HSplitter, 500);
+
 	m_Notebook = new wxNotebook(m_HSplitter, wxID_ANY);
 	m_HSplitter->SplitHorizontally(m_DisamSource, m_Notebook, 400);
 	m_AsmSource->SetFocus();
@@ -314,11 +316,12 @@ void MainFrame::OnCreate(wxWindowCreateEvent& event) {
 		else
 			m_RegViewFilter &= ~(1 << (e.GetId() - wxID_8BITREG));
 		ShowRegisters();
-		}, wxID_8BITREG, wxID_64BITREG);
+		}, wxID_8BITREG, wxID_FLOAT);
 
 	m_Notebook->AddPage(frame, L"Registers", true, 0);
 
 	auto panel = new HexViewPanel(m_Notebook, this);
+
 	m_MemoryView = new wxHexView(panel);
 	auto dark = wxSystemSettings::GetAppearance().IsDark();
 	if (dark) {
@@ -368,6 +371,7 @@ void MainFrame::ShowRegisters() {
 	auto mode = m_Emulator.GetMode();
 	int i = 0;
 	for (auto& ri : AllRegisters) {
+		//auto floatRegs = (ri.Category & RegisterType::FloatingPoint) == RegisterType::FloatingPoint;
 		if (((DWORD)ri.Category & (DWORD)mode) && (m_RegViewFilter & (ri.Size >> 3))) {
 			auto index = m_RegistersList.InsertItem(m_RegistersList.GetItemCount(), ri.Name);
 			m_RegistersList.SetItemData(index, i);
@@ -382,7 +386,6 @@ void MainFrame::ShowRegisters() {
 
 void MainFrame::RunOnThreadPool() {
 	m_Emulator.HookCode(HookType::CODE, [&](auto address, auto) {
-		m_CurrentLine++;
 		if (auto it = m_Breakpoints.find(address); it != m_Breakpoints.end()) {
 			auto& bp = it->second;
 			::PostMessage(GetHandle(), UINT(EmulatorMessage::BreakpointHit), 0, address);
@@ -394,6 +397,10 @@ void MainFrame::RunOnThreadPool() {
 
 			m_Emulator.Stop();
 			::PostMessage(this->GetHandle(), UINT(EmulatorMessage::RunComplete), 0, 0);
+			m_CurrentLine = bp.Line;
+		}
+		else {
+			m_CurrentLine++;
 		}
 		}, m_Instructions[0].Address, m_Instructions[0].Address + m_AsmBytes.size());
 	auto ok = m_Emulator.Start(m_Instructions[0].Address, m_Instructions[0].Address + m_AsmBytes.size());
@@ -420,11 +427,15 @@ bool MainFrame::EditRegisterValue(int index) {
 }
 
 void MainFrame::Run(wxCommandEvent& e) {
-	assert(m_Emulator.IsOpen());
+	if (!m_Emulator.IsOpen())
+		Assemble(m_AsmSource->GetText());
+	if (m_Instructions.empty())
+		return;
+
 	switch (m_EmulatorState) {
 		case EmulatorState::Idle:
 			m_BreakpointAddress = 0;
-			m_CurrentLine = -1;
+			m_CurrentLine = 0;
 			Enable(wxID_STOP, true);
 			Enable(wxID_RUN, false);
 			Enable(wxID_ASSEMBLE, false);

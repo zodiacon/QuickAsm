@@ -14,6 +14,7 @@ using OptionValue = std::variant<int64_t, std::string>;
 
 class AssemblerBase abstract {
 public:
+	virtual ~AssemblerBase() = default;
 	void SetName(PCWSTR name);
 	PCWSTR GetName() const;
 	virtual AssemblerResults Assemble(std::string const& source);
