@@ -7,5 +7,6 @@ struct Helpers abstract final {
 	static std::vector<BYTE> ReadFileContents(PCWSTR path);
 	static PCWSTR RegisterTypeToString(RegisterType type);
 	static wxString CPUFlagsToString(uint32_t value);
+	static wxString CR0ToString(uint64_t value);
 };
 

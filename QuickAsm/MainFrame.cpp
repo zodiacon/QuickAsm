@@ -119,6 +119,7 @@ LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
 			SetStatusText(L"Idle", 1);
 			m_MemoryView->Refresh();
 			m_EmulatorState = EmulatorState::Idle;
+			m_CurrentLine = 0;
 			break;
 
 		case EmulatorMessage::BreakpointHit:
@@ -426,6 +427,13 @@ bool MainFrame::EditRegisterValue(int index) {
 	return true;
 }
 
+wxString MainFrame::GetRegisterValueDetails(const void* pValue, RegisterInfo const& ri) const {
+	switch (ri.Id) {
+		case x86Register::CR0: return Helpers::CR0ToString(*(uint64_t*)pValue);
+	}
+	return wxString();
+}
+
 void MainFrame::Run(wxCommandEvent& e) {
 	if (!m_Emulator.IsOpen())
 		Assemble(m_AsmSource->GetText());
@@ -524,6 +532,7 @@ void MainFrame::SetRegisterValue(int i, RegisterInfo const& ri) {
 				case 32: text = wxString::Format(L"%u (%d)", (uint32_t)value, (int32_t)value); break;
 				case 64: text = wxString::Format(L"%llu (%lld)", value, (int64_t)value); break;
 			}
+			text += L" " + GetRegisterValueDetails(&value, ri);
 			m_RegistersList.SetItem(i, 4, text);
 		}
 	}

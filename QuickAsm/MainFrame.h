@@ -37,6 +37,7 @@ private:
 	void RunOnThreadPool();
 	bool OnHexViewNotify(wxHexView* pHexView, int idCtrl, LPNMHDR hdr, WXLPARAM* result) override;
 	bool EditRegisterValue(int row);
+	wxString GetRegisterValueDetails(const void* pValue, RegisterInfo const& ri) const;
 
 	enum class EmulatorState {
 		Idle,

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "Helpers.h"
+#include "x64Types.h"
 
 std::wstring Helpers::GetTempFilePath(PCWSTR name) {
     WCHAR path[MAX_PATH]{};
@@ -67,5 +68,30 @@ wxString Helpers::CPUFlagsToString(uint32_t value) {
             text += wxString(f.text) + L"=1 ";
 
     text += wxString(L"IOPL=") + std::to_wstring((value & (1 << 12) || (1 << 13)) >> 12).c_str();
+    return text;
+}
+
+wxString Helpers::CR0ToString(uint64_t value) {
+    static const struct {
+        int bit;
+        PCWSTR text;
+    } bits[] = {
+        { 0, L"PE" },
+        { 1, L"MP" },
+        { 2, L"EM" },
+        { 3, L"TS" },
+        { 4, L"ET" },
+        { 5, L"NE" },
+        { 16, L"WP" },
+        { 18, L"AM" },
+        { 29, L"NW" },
+        { 30, L"CD" },
+        { 31, L"PG" },
+    };
+
+    wxString text;
+    for (auto& b : bits)
+        if (value & (1LL << b.bit))
+            text += wxString(b.text) + L"=1 ";
     return text;
 }
