@@ -18,7 +18,9 @@ Here is a list of currently supported features:
 My build setup uses [Vcpkg](https://vcpkg.io/en/) where possible. [Capstone Engine](https://www.capstone-engine.org/) and Uniocrn Engine are included using Vcpkg:
 
 `vcpkg install unicorn:x64-windows`
+
 `vcpkg install unicorn:x64-windows-static`
+
 `vcpkg install capstone[x86]-windows`
 
 The wxWidgets installation folder must be set with an environment variable named `WXWIN`. You can get the files by cloning the [wxWidgets repo](https://github.com/wxWidgets/wxWidgets).
