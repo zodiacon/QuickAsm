@@ -7,8 +7,8 @@ Quick Assembler is built with [wxWidgets](https://www.wxwidgets.org/downloads/).
 Here is a list of currently supported features:
 
 * Editing, opening, and saving ASM files, including undo/redo.
-* Assemble files with NASM or Keystone engine. For NASM, place `nasm.exe` in the output directory. (NASM can be downloaded from its [official site](https://nasm.us/).
-* Execute the assembled code (uses [Unicorn Engine](https://www.unicorn-engine.org/).
+* Assemble files with NASM or Keystone engine. For NASM, place `nasm.exe` in the output directory. NASM can be downloaded from its [official site](https://nasm.us/).
+* Execute the assembled code (uses [Unicorn Engine](https://www.unicorn-engine.org/) emulator).
 * Set breakpoints in the disassembled code.
 * Change register values and memory.
 * View registers and memory.
