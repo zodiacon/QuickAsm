@@ -114,6 +114,10 @@ bool UnicornEngine::RestoreContext(void* ctx) {
     return uc_context_restore(m_UC, (uc_context*)ctx) == UC_ERR_OK;
 }
 
+const char* UnicornEngine::GetErrorText(uc_err error) const {
+    return uc_strerror(error);
+}
+
 UnicornEngine::CpuContext::~CpuContext() {
     uc_context_free(m_ctx);
 }

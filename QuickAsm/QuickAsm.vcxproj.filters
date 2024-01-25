@@ -81,9 +81,6 @@
     <ClInclude Include="LocalArtProvider.h">
       <Filter>Helpers</Filter>
     </ClInclude>
-    <ClInclude Include="x64Types.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp">

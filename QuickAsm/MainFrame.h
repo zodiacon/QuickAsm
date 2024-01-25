@@ -48,6 +48,7 @@ private:
 	enum class EmulatorMessage {
 		RunComplete = WM_USER + 100,
 		BreakpointHit,
+		RunError,
 	};
 
 	struct BreakpointInfo {
@@ -82,6 +83,7 @@ private:
 	wil::unique_handle m_hContinueEvent, m_hStopEvent;
 	std::atomic<uint64_t> m_BreakpointAddress{ 0 };
 	std::atomic<int> m_CurrentLine{ 0 };
+	uint64_t m_CurrentAddress;
 	bool m_Modified{ false };
 	bool m_HexViewActive{ false };
 };

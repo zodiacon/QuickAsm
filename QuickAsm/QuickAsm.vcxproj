@@ -172,7 +172,6 @@
     <ClInclude Include="App.h" />
     <ClInclude Include="UnicornEngine.h" />
     <ClInclude Include="wxHexView.h" />
-    <ClInclude Include="x64Types.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\common\Trace.c">

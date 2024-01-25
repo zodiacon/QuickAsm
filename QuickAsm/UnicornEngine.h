@@ -191,7 +191,6 @@ public:
 
 	void* HookCode(HookType type, std::function<void(uint64_t, uint32_t)> cb, uint64_t begin, uint64_t end);
 	void Unhook(void* hook);
-	void UnhookAll();
 
 	struct CpuContext {
 		friend class UnicornEngine;
@@ -212,6 +211,7 @@ public:
 
 	void* SaveContext(void* ctx = nullptr);
 	bool RestoreContext(void* ctx);
+	const char* GetErrorText(uc_err error) const;
 
 private:
 	static void _CallbackHookCode(uc_engine* uc, uint64_t address, uint32_t size, void* ud);

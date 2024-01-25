@@ -108,7 +108,11 @@ MainFrame::MainFrame() {
 }
 
 LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
+	bool error = false;
 	switch (static_cast<EmulatorMessage>(msg)) {
+		case EmulatorMessage::RunError:
+			error = true;
+			[[fallthrough]];
 		case EmulatorMessage::RunComplete:
 			m_Emulator.Stop();
 			m_Breakpoints.erase(m_Instructions[0].Address + m_AsmBytes.size());
@@ -120,6 +124,10 @@ LRESULT MainFrame::MSWWindowProc(WXUINT msg, WXWPARAM wParam, WXLPARAM lParam) {
 			m_MemoryView->Refresh();
 			m_EmulatorState = EmulatorState::Idle;
 			m_CurrentLine = 0;
+			if (error) {
+				wxMessageBox(wxString::Format(L"Execution error at 0x%p: %s", m_CurrentAddress, m_Emulator.GetErrorText((uc_err)wParam)),
+					L"Quick ASM", wxICON_ERROR);
+			}
 			break;
 
 		case EmulatorMessage::BreakpointHit:
@@ -387,6 +395,7 @@ void MainFrame::ShowRegisters() {
 
 void MainFrame::RunOnThreadPool() {
 	m_Emulator.HookCode(HookType::CODE, [&](auto address, auto) {
+		m_CurrentAddress = address;
 		if (auto it = m_Breakpoints.find(address); it != m_Breakpoints.end()) {
 			auto& bp = it->second;
 			::PostMessage(GetHandle(), UINT(EmulatorMessage::BreakpointHit), 0, address);
@@ -405,8 +414,7 @@ void MainFrame::RunOnThreadPool() {
 		}
 		}, m_Instructions[0].Address, m_Instructions[0].Address + m_AsmBytes.size());
 	auto ok = m_Emulator.Start(m_Instructions[0].Address, m_Instructions[0].Address + m_AsmBytes.size());
-	assert(ok);
-	::PostMessage(this->GetHandle(), UINT(EmulatorMessage::RunComplete), 0, 0);
+	::PostMessage(this->GetHandle(), UINT(ok ? EmulatorMessage::RunComplete : EmulatorMessage::RunError), m_Emulator.LastError(), 0);
 }
 
 bool MainFrame::EditRegisterValue(int index) {
@@ -442,7 +450,7 @@ void MainFrame::Run(wxCommandEvent& e) {
 
 	switch (m_EmulatorState) {
 		case EmulatorState::Idle:
-			m_BreakpointAddress = 0;
+			m_BreakpointAddress = m_CurrentAddress = 0;
 			m_CurrentLine = 0;
 			Enable(wxID_STOP, true);
 			Enable(wxID_RUN, false);

@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "Helpers.h"
-#include "x64Types.h"
+#include "..\x64Types\x64Types.h"
 
 std::wstring Helpers::GetTempFilePath(PCWSTR name) {
     WCHAR path[MAX_PATH]{};
