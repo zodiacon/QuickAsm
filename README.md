@@ -15,15 +15,15 @@ Here is a list of currently supported features:
 
 ## Building
 
-My build setup uses [Vcpkg](https://vcpkg.io/en/) where possible. [Capstone Engine](https://www.capstone-engine.org/), Keystone, and Uniocrn Engine are included using Vcpkg:
+My build setup uses [Vcpkg](https://vcpkg.io/en/) where possible. [Capstone Engine](https://www.capstone-engine.org/), Keystone, and Unicorn Engine are included using Vcpkg:
 
 ```cmd
 vcpkg install unicorn:x64-windows
 vcpkg install unicorn:x64-windows-static
 vcpkg install capstone[x86]-windows
 vcpkg install capstone[x86]-windows-static
-vcpjg install keystone:x64-windows
-vcpjg install keystone:x64-windows-static
+vcpkg install keystone:x64-windows
+vcpkg install keystone:x64-windows-static
 ```
 
 The wxWidgets installation folder must be set with an environment variable named `WXWIN`. You can get the files by cloning the [wxWidgets repo](https://github.com/wxWidgets/wxWidgets).
