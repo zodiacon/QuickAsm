@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "MainFrame.h"
-#include "LocalArtProvider.h"
 #include "KeystoneAssembler.h"
 #include "NasmAssembler.h"
 #include "Helpers.h"
@@ -425,7 +424,7 @@ bool MainFrame::EditRegisterValue(int index) {
 		return false;
 	}
 
-	auto text = wxGetTextFromUser(L"New value:", L"Value for register " + ri.Name, m_RegistersList.GetItemText(index, 2), this);
+	auto text = wxGetTextFromUser(L"New value:", L"Value for register " + wxString(ri.Name), m_RegistersList.GetItemText(index, 2), this);
 	if (text.IsEmpty())
 		return false;
 
