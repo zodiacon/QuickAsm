@@ -255,11 +255,11 @@ BOOL HexView::OnCopy() {
 	//}
 
 	bool success = false;
-	if (OpenClipboard(m_hWnd)) {
+	if (::OpenClipboard(m_hWnd)) {
 		HANDLE hMem;
 		BYTE* ptr;
 
-		auto sellen = SelectionSize();
+		auto sellen = static_cast<ULONG>(SelectionSize());
 		if (sellen == 0)
 			return false;
 

@@ -54,7 +54,7 @@ MainFrame::MainFrame() {
 	if (dlg.ShowModal() == wxID_OK) {
 		m_FileName = dlg.GetPath();
 		if (m_FileName.Right(4).CmpNoCase(L".asm") != 0) {
-			m_AsmBytes = Helpers::ReadFileContents(m_FileName);
+			m_AsmBytes = Helpers::ReadFileContents(m_FileName.wc_str());
 			Disassemble(m_AsmBytes);
 		}
 		else {

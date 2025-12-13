@@ -14,11 +14,10 @@ bool App::OnInit() {
 	auto config = wxConfig::Get();
 	int mode = config->ReadLong(L"DarkMode", 2);
 
-
-	//switch (mode) {
-	//	case 0: MSWEnableDarkMode(DarkMode _Always); break;
-	//	case 2: MSWEnableDarkMode(DarkMode_Auto); break;
-	//}
+	switch (mode) {
+		case 0: MSWEnableDarkMode(DarkMode_Always); break;
+		case 2: MSWEnableDarkMode(DarkMode_Auto); break;
+	}
 
 	auto frame = new MainFrame;
 	frame->Create(nullptr, wxID_ANY, L"Quick Assembler");
