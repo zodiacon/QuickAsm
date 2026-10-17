@@ -5,6 +5,7 @@
 #include "EditValueDlg.h"
 #include <ToolbarHelper.h>
 #include <SortHelper.h>
+#include <WTLHelper.h>
 
 CRegistersView::CRegistersView(UnicornEngine& emulator) : m_Emulator(emulator) {
 }
@@ -30,6 +31,34 @@ void CRegistersView::UpdateValues() {
 
 void CRegistersView::SetLive(bool live) {
 	m_Live = live;
+	UpdateValues();
+}
+
+std::unordered_map<int, CString> CRegistersView::ReadValues() const {
+	std::unordered_map<int, CString> values;
+	if (!m_Emulator.IsOpen())
+		return values;
+
+	auto mode = (DWORD)m_Emulator.GetMode();
+	for (int i = 0; i < (int)AllRegisters.size(); i++)
+		if ((DWORD)AllRegisters[i].Category & mode)
+			values[i] = GetValueText(AllRegisters[i]);
+	return values;
+}
+
+void CRegistersView::ResetChanges() {
+	m_Values = ReadValues();
+	m_Changed.clear();
+	UpdateValues();
+}
+
+void CRegistersView::MarkChanges() {
+	auto values = ReadValues();
+	m_Changed.clear();
+	for (auto& [index, value] : values)
+		if (auto it = m_Values.find(index); it != m_Values.end() && it->second != value)
+			m_Changed.insert(index);
+	m_Values = std::move(values);
 	UpdateValues();
 }
 
@@ -125,6 +154,8 @@ bool CRegistersView::EditValue(int row) {
 		return false;
 
 	m_Emulator.WriteReg(ri.Id, (uint64_t)::wcstoull(dlg.GetValue(), nullptr, 0));
+	// (an edit isn't a change made by the code: the next stop compares with it)
+	m_Values = ReadValues();
 	// (the registers that overlap it change too)
 	UpdateValues();
 	return true;
@@ -175,6 +206,28 @@ LRESULT CRegistersView::OnListKeyDown(int, LPNMHDR pnmh, BOOL&) {
 	if (kd->wVKey == VK_RETURN && m_List.GetSelectedIndex() >= 0)
 		EditValue(m_List.GetSelectedIndex());
 	return 0;
+}
+
+LRESULT CRegistersView::OnListCustomDraw(int, LPNMHDR pnmh, BOOL&) {
+	auto cd = (NMLVCUSTOMDRAW*)pnmh;
+	switch (cd->nmcd.dwDrawStage) {
+		case CDDS_PREPAINT:
+			return CDRF_NOTIFYITEMDRAW;
+
+		case CDDS_ITEMPREPAINT:
+			m_ItemTextColor = cd->clrText;
+			return CDRF_NOTIFYSUBITEMDRAW;
+
+		case CDDS_ITEMPREPAINT | CDDS_SUBITEM:
+		{
+			// the value and its details, of a register that changed
+			auto row = (int)cd->nmcd.dwItemSpec;
+			auto changed = m_Live && (cd->iSubItem == 2 || cd->iSubItem == 4) && row < (int)m_Items.size() && m_Changed.contains(m_Items[row]);
+			cd->clrText = changed ? (WTLHelper::IsDarkMode() ? RGB(255, 96, 96) : RGB(220, 0, 0)) : m_ItemTextColor;
+			return CDRF_NEWFONT;
+		}
+	}
+	return CDRF_DODEFAULT;
 }
 
 LRESULT CRegistersView::OnFilter(WORD, WORD wID, HWND, BOOL&) {

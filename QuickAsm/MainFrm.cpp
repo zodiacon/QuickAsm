@@ -40,6 +40,8 @@ BOOL CMainFrame::OnIdle() {
 	UIEnable(ID_ASM_RESTART, haveCode);
 	UIEnable(ID_ASM_STEPINTO, haveCode && !running);
 	UIEnable(ID_ASM_STEPOVER, haveCode && !running);
+	UIEnable(ID_ASM_STEPOUT, m_EmulatorState == EmulatorState::Paused);
+	UIEnable(ID_ASM_RUNTOCURSOR, haveCode && !running);
 	UIEnable(ID_ASM_TOGGLEBP, haveCode);
 	UIEnable(ID_ASM_ENABLEBP, haveCode);
 	UIEnable(ID_ASM_DELETEALLBP, haveCode);
@@ -93,6 +95,7 @@ void CMainFrame::InitMenu(HMENU hMenu) {
 		{ ID_ASM_RESTART, IDI_RESTART },
 		{ ID_ASM_STEPOVER, IDI_STEPOVER },
 		{ ID_ASM_STEPINTO, IDI_STEPINTO },
+		{ ID_ASM_STEPOUT, IDI_STEPOUT },
 		{ ID_ASM_TOGGLEBP, IDI_BREAKPOINT },
 		{ ID_APP_ABOUT, IDR_MAINFRAME },
 	};
@@ -237,6 +240,7 @@ void CMainFrame::Assemble() {
 
 	auto results = assembler->Assemble(m_AsmSource.GetAllText());
 	ShowWarnings(results.Error ? std::string() : results.Output);
+	m_AsmSource.MarkErrorLines(results.Error ? GetErrorLines(results.Output) : std::vector<int>());
 	if (results.Error) {
 		m_AsmBytes.clear();
 		m_Instructions.clear();
@@ -257,6 +261,28 @@ void CMainFrame::Assemble() {
 		m_AsmBytes.clear();
 	}
 	Disassemble(m_AsmBytes.data(), m_AsmBytes.size());
+}
+
+std::vector<int> CMainFrame::GetErrorLines(std::string const& errors) {
+	// the lines starting with "<line>:" (0 based)
+	std::vector<int> lines;
+	for (size_t start = 0, end; start < errors.size(); start = end + 1) {
+		end = errors.find('\n', start);
+		if (end == std::string::npos)
+			end = errors.size();
+		if (auto line = ParseErrorLine(errors.substr(start, end - start)); line >= 0)
+			lines.push_back(line);
+	}
+	return lines;
+}
+
+int CMainFrame::ParseErrorLine(std::string const& text) {
+	size_t digits = 0;
+	while (digits < text.size() && text[digits] >= '0' && text[digits] <= '9')
+		digits++;
+	if (digits == 0 || digits > 7 || digits >= text.size() || text[digits] != ':')
+		return -1;
+	return std::stoi(text.substr(0, digits)) - 1;
 }
 
 void CMainFrame::ShowWarnings(std::string const& warnings) {
@@ -380,6 +406,7 @@ void CMainFrame::CreateToolBar() {
 		{ 0 },
 		{ ID_ASM_STEPOVER, IDI_STEPOVER },
 		{ ID_ASM_STEPINTO, IDI_STEPINTO },
+		{ ID_ASM_STEPOUT, IDI_STEPOUT },
 		{ 0 },
 		{ ID_ASM_TOGGLEBP, IDI_BREAKPOINT },
 	};
@@ -421,7 +448,9 @@ void CMainFrame::CreateToolBar() {
 	m_AssemblerCombo.SetWindowPos(nullptr, rc.left, center(rc, rcCombo.Height()).top, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 	addLabel(m_AddressLabel, L"Address: ", 60);
 	auto rcEdit = center(addSpace(90), 22);
-	m_AddressEdit.Create(tb, rcEdit, L"0x1000", WS_CHILD | WS_VISIBLE | ES_RIGHT | ES_AUTOHSCROLL, WS_EX_CLIENTEDGE, IDC_ADDRESS);
+	CString address;
+	address.Format(L"0x%llX", m_Address);
+	m_AddressEdit.Create(tb, rcEdit, address, WS_CHILD | WS_VISIBLE | ES_RIGHT | ES_AUTOHSCROLL, WS_EX_CLIENTEDGE, IDC_ADDRESS);
 	m_AddressEdit.SetFont(font);
 
 	AddSimpleReBarBand(tb, nullptr, FALSE, 0, TRUE);
@@ -449,6 +478,11 @@ void CMainFrame::CreateBottomPane() {
 
 LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	auto& settings = AppSettings::Get();
+	// as last used
+	m_AssemblerIndex = std::clamp(settings.Assembler(), 0, (int)m_Assemblers.size() - 1);
+	m_AsmMode = static_cast<AsmMode>(std::clamp(settings.AsmMode(), 0, 2));
+	if (auto address = ::wcstoull(settings.Address().c_str(), nullptr, 0); address < m_Memory.size())
+		m_Address = address;
 
 	CreateToolBar();
 	CreateSimpleStatusBar();
@@ -509,6 +543,11 @@ LRESULT CMainFrame::OnDestroy(UINT, WPARAM, LPARAM, BOOL& bHandled) {
 
 	auto& settings = AppSettings::Get();
 	settings.SaveWindowPosition(m_hWnd, L"MainWindowPlacement");
+	settings.Assembler(m_AssemblerIndex);
+	settings.AsmMode((int)m_AsmMode);
+	CString address;
+	m_AddressEdit.GetWindowText(address);
+	settings.Address((PCWSTR)address);
 	settings.ViewStatusBar(IsStatusBarVisible());
 
 	auto pLoop = _Module.GetMessageLoop();

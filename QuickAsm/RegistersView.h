@@ -2,6 +2,7 @@
 
 #include "resource.h"
 #include <VirtualListView.h>
+#include <unordered_set>
 
 class UnicornEngine;
 struct RegisterInfo;
@@ -21,6 +22,10 @@ public:
 	void UpdateValues();
 	// not live while the emulator runs: the values can't be read then (the emulator isn't thread safe)
 	void SetLive(bool live);
+	// the values to compare with at the next stop (none shown as changed): after the emulator was set up
+	void ResetChanges();
+	// the values that changed since the last stop are shown in another color: at a stop
+	void MarkChanges();
 
 	CString GetColumnText(HWND, int row, int col) const;
 	void DoSort(SortInfo const* si);
@@ -32,6 +37,7 @@ public:
 		MESSAGE_HANDLER(WM_SIZE, OnSize)
 		MESSAGE_HANDLER(WM_SETFOCUS, OnSetFocus)
 		NOTIFY_CODE_HANDLER(LVN_KEYDOWN, OnListKeyDown)
+		NOTIFY_HANDLER(IDC_REGISTERS, NM_CUSTOMDRAW, OnListCustomDraw)
 		COMMAND_RANGE_HANDLER(ID_REGS_8BIT, ID_REGS_64BIT, OnFilter)
 		COMMAND_ID_HANDLER(ID_REGS_EDIT, OnEdit)
 		CHAIN_MSG_MAP(CVirtualListView<CRegistersView>)
@@ -42,11 +48,14 @@ private:
 	CString GetValueText(RegisterInfo const& ri) const;
 	CString GetDetailsText(RegisterInfo const& ri) const;
 	bool EditValue(int row);
+	// the values of the registers of the emulator's mode, by index into AllRegisters
+	std::unordered_map<int, CString> ReadValues() const;
 
 	LRESULT OnCreate(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnSize(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnSetFocus(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnListKeyDown(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
+	LRESULT OnListCustomDraw(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
 	LRESULT OnFilter(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnEdit(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
@@ -57,4 +66,7 @@ private:
 	// the register sizes shown: bit 0 for 8 bit, 1 for 16, 2 for 32, 3 for 64 (tested against RegisterInfo::Size >> 3)
 	DWORD m_Filter{ 1 << 2 };
 	bool m_Live{ true };
+	std::unordered_map<int, CString> m_Values;	// at the last stop
+	std::unordered_set<int> m_Changed;			// since the stop before
+	COLORREF m_ItemTextColor{ CLR_DEFAULT };	// of the item being drawn
 };

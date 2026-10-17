@@ -103,6 +103,7 @@ HWND CAsmEditor::Create(HWND hParent, UINT id, bool readOnly) {
 	MarkerDefine(CurrentLineMarker, Scintilla::MarkerSymbol::ShortArrow);
 	MarkerDefine(DisabledBreakpointMarker, Scintilla::MarkerSymbol::Circle);
 	Execute(SCI_INDICSETSTYLE, CurrentLineIndicator, INDIC_FULLBOX);
+	Execute(SCI_INDICSETSTYLE, ErrorIndicator, INDIC_SQUIGGLEPIXMAP);
 
 	SetLexer(CreateLexer("asm"));
 	for (int i = 0; i < _countof(KeyWords_ASM); i++)
@@ -151,6 +152,7 @@ void CAsmEditor::ApplyTheme() {
 	MarkerSetFore(CurrentLineMarker, dark ? RGB(160, 120, 0) : RGB(128, 96, 0));
 	Execute(SCI_INDICSETFORE, CurrentLineIndicator, dark ? RGB(160, 160, 0) : RGB(255, 255, 0));
 	Execute(SCI_INDICSETALPHA, CurrentLineIndicator, dark ? 80 : 100);
+	Execute(SCI_INDICSETFORE, ErrorIndicator, dark ? RGB(255, 80, 80) : RGB(220, 0, 0));
 }
 
 void CAsmEditor::SetBreakpointMarker(int line, bool exists, bool enabled) {
@@ -158,6 +160,21 @@ void CAsmEditor::SetBreakpointMarker(int line, bool exists, bool enabled) {
 	MarkerDelete(line, DisabledBreakpointMarker);
 	if (exists)
 		MarkerAdd(line, enabled ? BreakpointMarker : DisabledBreakpointMarker);
+}
+
+void CAsmEditor::MarkErrorLines(std::vector<int> const& lines) {
+	Execute(SCI_SETINDICATORCURRENT, ErrorIndicator);
+	Execute(SCI_INDICATORCLEARRANGE, 0, Length());
+	auto count = (int)Execute(SCI_GETLINECOUNT);
+	for (auto line : lines) {
+		if (line < 0 || line >= count)
+			continue;
+		// the text of the line (not its line break)
+		auto start = PositionFromLine(line);
+		auto end = (Sci_Position)Execute(SCI_GETLINEENDPOSITION, line);
+		if (end > start)
+			Execute(SCI_INDICATORFILLRANGE, start, end - start);
+	}
 }
 
 void CAsmEditor::DeleteBreakpointMarkers() {

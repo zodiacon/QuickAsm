@@ -10,6 +10,7 @@ public:
 		CurrentLineMarker = 2,
 		DisabledBreakpointMarker = 3,
 		CurrentLineIndicator = 2,
+		ErrorIndicator = 3,
 	};
 
 	HWND Create(HWND hParent, UINT id, bool readOnly = false);
@@ -18,6 +19,8 @@ public:
 	// the breakpoint marker of a line: none, enabled or disabled
 	void SetBreakpointMarker(int line, bool exists, bool enabled = true);
 	void DeleteBreakpointMarkers();
+	// the lines with errors are underlined (none: the marks go)
+	void MarkErrorLines(std::vector<int> const& lines);
 	// the line where execution stopped (-1: none), made visible
 	void SetCurrentLine(int line);
 

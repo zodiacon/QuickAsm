@@ -58,6 +58,8 @@
 #define ID_ASM_DELETEALLBP              32807
 #define ID_ASM_ENABLEBP                 32808
 #define ID_RECENTFILES_EMPTY            32809
+#define ID_ASM_STEPOUT                  32813
+#define ID_ASM_RUNTOCURSOR              32814
 // the three modes must stay consecutive
 #define ID_MODE_16BIT                   32810
 #define ID_MODE_32BIT                   32811

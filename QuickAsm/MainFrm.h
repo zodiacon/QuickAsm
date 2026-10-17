@@ -50,6 +50,7 @@ public:
 		NOTIFY_HANDLER(IDC_ASM_SOURCE, SCN_SAVEPOINTREACHED, OnSavePointChanged)
 		NOTIFY_HANDLER(IDC_ASM_SOURCE, SCN_SAVEPOINTLEFT, OnSavePointChanged)
 		NOTIFY_HANDLER(IDC_DISASSEMBLY, SCN_MARGINCLICK, OnDisassemblyMarginClick)
+		NOTIFY_HANDLER(IDC_DISASSEMBLY, SCN_DOUBLECLICK, OnDisassemblyDoubleClick)
 		MESSAGE_HANDLER(WM_EMULATOR_PAUSED, OnEmulatorPaused)
 		MESSAGE_HANDLER(WM_EMULATOR_DONE, OnEmulatorDone)
 		COMMAND_HANDLER(IDC_ASSEMBLER, CBN_SELCHANGE, OnAssemblerSelected)
@@ -74,6 +75,8 @@ public:
 		COMMAND_ID_HANDLER(ID_ASM_RESTART, OnRestart)
 		COMMAND_ID_HANDLER(ID_ASM_STEPINTO, OnStepInto)
 		COMMAND_ID_HANDLER(ID_ASM_STEPOVER, OnStepOver)
+		COMMAND_ID_HANDLER(ID_ASM_STEPOUT, OnStepOut)
+		COMMAND_ID_HANDLER(ID_ASM_RUNTOCURSOR, OnRunToCursor)
 		COMMAND_ID_HANDLER(ID_ASM_TOGGLEBP, OnToggleBreakpoint)
 		COMMAND_ID_HANDLER(ID_ASM_ENABLEBP, OnEnableBreakpoint)
 		COMMAND_ID_HANDLER(ID_ASM_DELETEALLBP, OnDeleteAllBreakpoints)
@@ -112,6 +115,9 @@ private:
 	bool DoSaveAs();
 	void Assemble();
 	void ShowWarnings(std::string const& warnings);
+	static std::vector<int> GetErrorLines(std::string const& errors);
+	// the line of an error ("<line>: ..."), 0 based; -1 if none
+	static int ParseErrorLine(std::string const& text);
 	void Disassemble(uint8_t const* data, size_t size);
 	void CreateBottomPane();
 	void CreateToolBar();
@@ -121,8 +127,11 @@ private:
 	// emulator (MainFrmEmulator.cpp)
 	// the emulator gets the code (at m_Address) after it was disassembled (the breakpoints go, unless it's the same code)
 	void InitEmulator(uint8_t const* data, size_t size, bool keepBreakpoints = false);
-	// runs from the start (the state is reset if the code ran before), or continues when paused
-	void Run(bool stepInto = false, uint64_t stopAt = 0);
+	// runs from the start (the state is reset if the code ran before), or continues when paused;
+	// stops at the next instruction, at an address, or (step out) after a return to the caller
+	void Run(bool stepInto = false, uint64_t stopAt = 0, bool stepOut = false);
+	uint64_t ReadStackPointer() const;
+	bool IsReturn(uint64_t address) const;
 	// waits for the emulator thread to end
 	void StopEmulator();
 	// tells the emulator thread to end (without waiting)
@@ -133,6 +142,7 @@ private:
 	bool IsEmulatorBusy() const;
 
 	LRESULT OnDisassemblyMarginClick(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
+	LRESULT OnDisassemblyDoubleClick(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
 	LRESULT OnEmulatorPaused(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM lParam, BOOL& /*bHandled*/);
 	LRESULT OnEmulatorDone(UINT /*uMsg*/, WPARAM wParam, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnRun(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
@@ -140,6 +150,8 @@ private:
 	LRESULT OnRestart(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnStepInto(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnStepOver(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnStepOut(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnRunToCursor(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnToggleBreakpoint(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnEnableBreakpoint(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnDeleteAllBreakpoints(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
@@ -202,7 +214,10 @@ private:
 	std::map<uint64_t, bool> m_Breakpoints;	// address -> enabled
 	mutable std::mutex m_BreakpointsLock;
 	std::atomic<bool> m_StepInto{ false };
-	std::atomic<uint64_t> m_StopAt{ 0 };	// a one-time stop (step over)
+	std::atomic<uint64_t> m_StopAt{ 0 };	// a one-time stop (step over, run to cursor)
+	std::atomic<bool> m_StepOut{ false };
+	uint64_t m_StepOutSP{ 0 };		// the stack pointer when stepping out started
+	bool m_LastWasReturn{ false };	// (the emulator thread's: the previous instruction was a return)
 	std::atomic<bool> m_StopRequested{ false };
 	bool m_CodeRan{ false };	// since the emulator was set up
 	bool m_RestartPending{ false };

@@ -41,6 +41,7 @@ void CMainFrame::InitEmulator(uint8_t const* data, size_t size, bool keepBreakpo
 	}
 	m_RegistersView.SetLive(true);
 	m_RegistersView.Refresh();
+	m_RegistersView.ResetChanges();
 	m_MemoryView.Reset();
 	if (!m_Instructions.empty())
 		m_MemoryView.GotoAddress(m_Instructions[0].Address);
@@ -55,9 +56,29 @@ int CMainFrame::LineFromAddress(uint64_t address) const {
 	return it == m_AddressToLine.end() ? -1 : it->second;
 }
 
-void CMainFrame::Run(bool stepInto, uint64_t stopAt) {
+uint64_t CMainFrame::ReadStackPointer() const {
+	switch (m_AsmMode) {
+		case AsmMode::Bits16: return m_Emulator.ReadReg<uint16_t>(x86Register::SP);
+		case AsmMode::Bits32: return m_Emulator.ReadReg<uint32_t>(x86Register::ESP);
+	}
+	return m_Emulator.ReadReg<uint64_t>(x86Register::RSP);
+}
+
+bool CMainFrame::IsReturn(uint64_t address) const {
+	auto line = LineFromAddress(address);
+	if (line < 0)
+		return false;
+	auto id = m_Instructions[line].Id;
+	return id == X86_INS_RET || id == X86_INS_RETF || id == X86_INS_RETFQ;
+}
+
+void CMainFrame::Run(bool stepInto, uint64_t stopAt, bool stepOut) {
 	m_StepInto = stepInto;
 	m_StopAt = stopAt;
+	m_StepOut = stepOut;
+	// (read while the emulator thread waits in the code hook, or before it starts)
+	if (stepOut)
+		m_StepOutSP = ReadStackPointer();
 
 	if (m_EmulatorState == EmulatorState::Paused) {
 		m_Disassembly.SetCurrentLine(-1);
@@ -79,6 +100,7 @@ void CMainFrame::Run(bool stepInto, uint64_t stopAt) {
 	}
 
 	m_StopRequested = false;
+	m_LastWasReturn = false;
 	m_ContinueEvent.ResetEvent();
 	m_StopEvent.ResetEvent();
 	m_CodeRan = true;
@@ -100,6 +122,10 @@ void CMainFrame::Run(bool stepInto, uint64_t stopAt) {
 // called on the emulator thread before each instruction runs
 void CMainFrame::OnCodeHook(uint64_t address) {
 	bool stop = m_StepInto || m_StopAt == address;
+	// step out: the first instruction after a return that left the function (the stack is above where it was)
+	if (!stop && m_StepOut && m_LastWasReturn && ReadStackPointer() > m_StepOutSP)
+		stop = true;
+	m_LastWasReturn = IsReturn(address);
 	if (!stop) {
 		std::lock_guard lock(m_BreakpointsLock);
 		auto it = m_Breakpoints.find(address);
@@ -109,6 +135,7 @@ void CMainFrame::OnCodeHook(uint64_t address) {
 		return;
 
 	m_StopAt = 0;
+	m_StepOut = false;
 	PostMessage(WM_EMULATOR_PAUSED, 0, (LPARAM)address);
 	HANDLE events[] = { m_ContinueEvent.get(), m_StopEvent.get() };
 	if (::WaitForMultipleObjects(_countof(events), events, FALSE, INFINITE) == WAIT_OBJECT_0 + 1)
@@ -140,6 +167,7 @@ void CMainFrame::StopEmulator() {
 void CMainFrame::ShowEmulatorState(int line) {
 	m_CurrentLine = line;
 	m_Disassembly.SetCurrentLine(line);
+	m_RegistersView.MarkChanges();
 	m_RegistersView.SetLive(true);
 	m_MemoryView.Refresh();
 }
@@ -165,24 +193,25 @@ LRESULT CMainFrame::OnEmulatorDone(UINT, WPARAM wParam, LPARAM, BOOL&) {
 	if (m_EmulatorWork)
 		::WaitForThreadpoolWorkCallbacks(m_EmulatorWork.get(), FALSE);
 	m_EmulatorState = EmulatorState::Idle;
-	ShowEmulatorState(-1);
 
 	auto error = (uc_err)wParam;
 	if (m_RestartPending) {
 		m_RestartPending = false;
+		ShowEmulatorState(-1);
 		Run();
 		return 0;
 	}
 
 	if (error != UC_ERR_OK && !m_StopRequested) {
 		auto pc = m_Emulator.ReadReg<uint64_t>(m_AsmMode == AsmMode::Bits64 ? x86Register::RIP : x86Register::EIP);
+		ShowEmulatorState(LineFromAddress(pc));
 		CString text;
 		text.Format(L"Execution error at 0x%llX: %S", pc, m_Emulator.GetErrorText(error));
 		m_StatusBar.SetText(1, L"Error");
 		AtlMessageBox(m_hWnd, (PCWSTR)text, IDR_MAINFRAME, MB_ICONERROR);
-		ShowEmulatorState(LineFromAddress(pc));
 		return 0;
 	}
+	ShowEmulatorState(-1);
 	m_StatusBar.SetText(1, m_StopRequested ? L"Stopped" : L"Completed");
 	return 0;
 }
@@ -215,6 +244,25 @@ LRESULT CMainFrame::OnRestart(WORD, WORD, HWND, BOOL&) {
 LRESULT CMainFrame::OnStepInto(WORD, WORD, HWND, BOOL&) {
 	if (m_EmulatorState != EmulatorState::Running)
 		Run(true);
+	return 0;
+}
+
+LRESULT CMainFrame::OnStepOut(WORD, WORD, HWND, BOOL&) {
+	if (m_EmulatorState == EmulatorState::Paused)
+		Run(false, 0, true);
+	return 0;
+}
+
+LRESULT CMainFrame::OnRunToCursor(WORD, WORD, HWND, BOOL&) {
+	if (m_EmulatorState == EmulatorState::Running)
+		return 0;
+
+	auto line = GetDisassemblyCaretLine();
+	if (line < 0 || line >= (int)m_Instructions.size()) {
+		::MessageBeep(MB_ICONWARNING);
+		return 0;
+	}
+	Run(false, m_Instructions[line].Address);
 	return 0;
 }
 
@@ -347,6 +395,19 @@ LRESULT CMainFrame::OnEnableBreakpoint(WORD, WORD, HWND, BOOL&) {
 
 LRESULT CMainFrame::OnDeleteAllBreakpoints(WORD, WORD, HWND, BOOL&) {
 	DeleteAllBreakpoints();
+	return 0;
+}
+
+LRESULT CMainFrame::OnDisassemblyDoubleClick(int, LPNMHDR pnmh, BOOL&) {
+	auto scn = (SCNotification*)pnmh;
+	// an assembly error ("<line>: ...") shows its line in the source
+	if (m_Instructions.empty()) {
+		auto line = ParseErrorLine(m_Disassembly.GetLine(scn->line));
+		if (line >= 0 && line < (int)m_AsmSource.Execute(SCI_GETLINECOUNT)) {
+			m_AsmSource.GotoLine(line);
+			m_AsmSource.SetFocus();
+		}
+	}
 	return 0;
 }
 
