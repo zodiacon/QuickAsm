@@ -38,6 +38,7 @@ BOOL CMainFrame::OnIdle() {
 	auto haveCode = !m_Instructions.empty() && m_Emulator.IsOpen();
 	UIEnable(ID_ASM_ASSEMBLE, anyText && !busy);
 	UIEnable(ID_ASM_RUN, haveCode && !running);
+	UIEnable(ID_ASM_BREAK, running);
 	UIEnable(ID_ASM_STOP, busy);
 	UIEnable(ID_ASM_RESTART, haveCode);
 	UIEnable(ID_ASM_STEPINTO, haveCode && !running);
@@ -96,6 +97,7 @@ void CMainFrame::InitMenu(HMENU hMenu) {
 		{ ID_MODE_32BIT, IDI_32BIT },
 		{ ID_MODE_64BIT, IDI_64BIT },
 		{ ID_ASM_RUN, IDI_RUN },
+		{ ID_ASM_BREAK, IDI_BREAK },
 		{ ID_ASM_STOP, IDI_STOP },
 		{ ID_ASM_RESTART, IDI_RESTART },
 		{ ID_ASM_STEPOVER, IDI_STEPOVER },
@@ -557,6 +559,7 @@ void CMainFrame::CreateToolBar() {
 		{ ID_ASM_ASSEMBLE, IDI_BUILD },
 		{ 0 },
 		{ ID_ASM_RUN, IDI_RUN },
+		{ ID_ASM_BREAK, IDI_BREAK },
 		{ ID_ASM_STOP, IDI_STOP },
 		{ ID_ASM_RESTART, IDI_RESTART },
 		{ 0 },

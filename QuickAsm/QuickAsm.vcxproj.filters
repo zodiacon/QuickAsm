@@ -201,6 +201,9 @@
     <Image Include="Icons\stack.ico">
       <Filter>Resource Files\Icons</Filter>
     </Image>
+    <Image Include="Icons\break.ico">
+      <Filter>Resource Files\Icons</Filter>
+    </Image>
     <Image Include="Icons\copy.ico">
       <Filter>Resource Files\Icons</Filter>
     </Image>

@@ -212,6 +212,7 @@
     <Image Include="Icons\AsmStudio.ico" />
     <Image Include="Icons\binary.ico" />
     <Image Include="Icons\stack.ico" />
+    <Image Include="Icons\break.ico" />
     <Image Include="Icons\breakpoint.ico" />
     <Image Include="Icons\build.ico" />
     <Image Include="Icons\copy.ico" />

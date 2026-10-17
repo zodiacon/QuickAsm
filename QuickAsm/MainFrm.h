@@ -80,6 +80,7 @@ public:
 		COMMAND_ID_HANDLER(ID_ASM_ASSEMBLE, OnAssemble)
 		COMMAND_RANGE_HANDLER(ID_ASSEMBLER_KEYSTONE, ID_ASSEMBLER_NASM, OnAssembler)
 		COMMAND_ID_HANDLER(ID_ASM_RUN, OnRun)
+		COMMAND_ID_HANDLER(ID_ASM_BREAK, OnBreak)
 		COMMAND_ID_HANDLER(ID_ASM_STOP, OnStop)
 		COMMAND_ID_HANDLER(ID_ASM_RESTART, OnRestart)
 		COMMAND_ID_HANDLER(ID_ASM_STEPINTO, OnStepInto)
@@ -174,6 +175,7 @@ private:
 	LRESULT OnEmulatorPaused(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM lParam, BOOL& /*bHandled*/);
 	LRESULT OnEmulatorDone(UINT /*uMsg*/, WPARAM wParam, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnRun(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnBreak(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnStop(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnRestart(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnStepInto(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
@@ -265,6 +267,7 @@ private:
 	std::atomic<bool> m_StepInto{ false };
 	std::atomic<uint64_t> m_StopAt{ 0 };	// a one-time stop (step over, run to cursor)
 	std::atomic<bool> m_StepOut{ false };
+	std::atomic<bool> m_BreakRequested{ false };	// pause at the next instruction (Break)
 	uint64_t m_StepOutSP{ 0 };		// the stack pointer when stepping out started
 	bool m_LastWasReturn{ false };	// (the emulator thread's: the previous instruction was a return)
 	std::atomic<bool> m_StopRequested{ false };

@@ -78,6 +78,8 @@ void CMainFrame::Run(bool stepInto, uint64_t stopAt, bool stepOut) {
 	m_StepInto = stepInto;
 	m_StopAt = stopAt;
 	m_StepOut = stepOut;
+	// (one that came too late, after the code ended or paused anyway, is forgotten)
+	m_BreakRequested = false;
 	// (read while the emulator thread waits in the code hook, or before it starts)
 	if (stepOut)
 		m_StepOutSP = ReadStackPointer();
@@ -133,7 +135,7 @@ void CMainFrame::Run(bool stepInto, uint64_t stopAt, bool stepOut) {
 
 // called on the emulator thread before each instruction runs
 void CMainFrame::OnCodeHook(uint64_t address) {
-	bool stop = m_StepInto || m_StopAt == address;
+	bool stop = m_StepInto || m_StopAt == address || m_BreakRequested.exchange(false);
 	// step out: the first instruction after a return that left the function (the stack is above where it was)
 	if (!stop && m_StepOut && m_LastWasReturn && ReadStackPointer() > m_StepOutSP)
 		stop = true;
@@ -319,6 +321,13 @@ LRESULT CMainFrame::OnEmulatorDone(UINT, WPARAM wParam, LPARAM, BOOL&) {
 LRESULT CMainFrame::OnRun(WORD, WORD, HWND, BOOL&) {
 	if (m_EmulatorState != EmulatorState::Running)
 		Run();
+	return 0;
+}
+
+LRESULT CMainFrame::OnBreak(WORD, WORD, HWND, BOOL&) {
+	// (the code hook pauses at the next instruction)
+	if (m_EmulatorState == EmulatorState::Running)
+		m_BreakRequested = true;
 	return 0;
 }
 
