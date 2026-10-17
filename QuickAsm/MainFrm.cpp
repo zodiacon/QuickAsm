@@ -255,6 +255,8 @@ bool CMainFrame::ParseAddress() {
 void CMainFrame::Assemble() {
 	if (!ParseAddress())
 		return;
+	// (the code is replaced: the emulator thread reads it; F7 comes through while the command is disabled)
+	StopEmulator();
 
 	auto assembler = m_Assemblers[m_AssemblerIndex].get();
 	assembler->SetValue("mode", int64_t(1) << (4 + (int)m_AsmMode));
@@ -396,6 +398,8 @@ void CMainFrame::ShowWarnings(std::string const& warnings) {
 }
 
 void CMainFrame::Disassemble(uint8_t const* data, size_t size) {
+	// (before the instructions are replaced: the emulator thread reads them)
+	StopEmulator();
 	DisassembleText(data, size);
 	InitEmulator(data, size);
 
@@ -805,6 +809,8 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	InitMenu(hMenu);
 	UIAddMenu(hMenu);
 	m_RecentFiles.Set(settings.RecentFiles());
+	// files dropped on the window (the editors take them themselves: SCN_URIDROPPED)
+	DragAcceptFiles();
 	UpdateRecentFilesMenu();
 
 
@@ -907,6 +913,7 @@ bool CMainFrame::NewSource(const char* text) {
 	if (!SaveChangesIfNeeded())
 		return false;
 
+	StopEmulator();
 	m_AsmSource.SetText(text);
 	m_AsmSource.Execute(SCI_CONVERTEOLS, m_AsmSource.Execute(SCI_GETEOLMODE));
 	m_AsmSource.EmptyUndoBuffer();
@@ -983,6 +990,43 @@ LRESULT CMainFrame::OnOptionsAutoComplete(WORD, WORD, HWND, BOOL&) {
 LRESULT CMainFrame::OnEditCompleteWord(WORD, WORD, HWND, BOOL&) {
 	if (::GetFocus() == m_AsmSource)
 		m_AsmSource.AutoComplete(true);
+	return 0;
+}
+
+LRESULT CMainFrame::OnEditorFileDropped(int, LPNMHDR pnmh, BOOL&) {
+	// (one notification for each file, one after the other: the first is opened once they're all sent)
+	auto scn = (SCNotification*)pnmh;
+	if (scn->text && m_DroppedFile.IsEmpty()) {
+		m_DroppedFile = CA2W(scn->text, CP_UTF8);
+		PostMessage(WM_OPEN_DROPPED);
+	}
+	return 0;
+}
+
+LRESULT CMainFrame::OnOpenDropped(UINT, WPARAM, LPARAM, BOOL&) {
+	auto path = m_DroppedFile;
+	SetForegroundWindow(m_hWnd);
+	OpenFile(path);
+	m_DroppedFile.Empty();
+	return 0;
+}
+
+LRESULT CMainFrame::OnDropFiles(UINT, WPARAM wParam, LPARAM, BOOL&) {
+	auto hDrop = (HDROP)wParam;
+	WCHAR path[MAX_PATH];
+	auto ok = ::DragQueryFile(hDrop, 0, path, _countof(path)) > 0;
+	::DragFinish(hDrop);
+	if (ok) {
+		SetForegroundWindow(m_hWnd);
+		OpenFile(path);
+	}
+	return 0;
+}
+
+LRESULT CMainFrame::OnViewTab(WORD, WORD wID, HWND, BOOL&) {
+	int page = wID - ID_VIEW_REGISTERS;
+	m_Tabs.SetActivePage(page);
+	::SetFocus(m_Tabs.GetPageHWND(page));
 	return 0;
 }
 

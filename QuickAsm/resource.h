@@ -107,6 +107,10 @@
 #define ID_DISASM_BYTES                 32857
 #define ID_DISASM_UPPERCASE             32858
 #define ID_OPTIONS_MEMORY               32859
+#define ID_VIEW_REGISTERS               32860
+#define ID_VIEW_MEMORY                  32861
+#define ID_VIEW_BREAKPOINTS             32862
+#define ID_VIEW_STACK                   32863
 // the three themes must stay consecutive, in DarkModeKind order (Light, Dark, System)
 #define ID_THEME_LIGHT                  32820
 #define ID_THEME_DARK                   32821
@@ -117,7 +121,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        134
-#define _APS_NEXT_COMMAND_VALUE         32860
+#define _APS_NEXT_COMMAND_VALUE         32864
 #define _APS_NEXT_CONTROL_VALUE         1017
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

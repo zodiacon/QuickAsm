@@ -55,6 +55,11 @@ public:
 		NOTIFY_HANDLER(IDC_DISASSEMBLY, SCN_MARGINCLICK, OnDisassemblyMarginClick)
 		NOTIFY_HANDLER(IDC_ASM_SOURCE, SCN_MARGINCLICK, OnSourceMarginClick)
 		NOTIFY_HANDLER(IDC_ASM_SOURCE, SCN_CHARADDED, OnSourceCharAdded)
+		NOTIFY_HANDLER(IDC_ASM_SOURCE, SCN_URIDROPPED, OnEditorFileDropped)
+		NOTIFY_HANDLER(IDC_DISASSEMBLY, SCN_URIDROPPED, OnEditorFileDropped)
+		MESSAGE_HANDLER(WM_DROPFILES, OnDropFiles)
+		MESSAGE_HANDLER(WM_OPEN_DROPPED, OnOpenDropped)
+		COMMAND_RANGE_HANDLER(ID_VIEW_REGISTERS, ID_VIEW_STACK, OnViewTab)
 		MESSAGE_HANDLER(CFindReplaceDialog::GetFindReplaceMsg(), OnFindReplace)
 		COMMAND_ID_HANDLER(ID_EDIT_FIND, OnEditFind)
 		COMMAND_ID_HANDLER(ID_EDIT_REPLACE, OnEditFind)
@@ -127,6 +132,7 @@ private:
 	// posted by the emulator thread
 	static const UINT WM_EMULATOR_PAUSED = WM_APP + 10;	// lParam: the address; wParam: TRUE if a breakpoint's condition couldn't be evaluated
 	static const UINT WM_EMULATOR_DONE = WM_APP + 11;	// wParam: uc_err
+	static const UINT WM_OPEN_DROPPED = WM_APP + 12;
 
 	void InitMenu(HMENU hMenu);
 	void ApplyTheme();
@@ -249,6 +255,10 @@ private:
 	// the host's bytes of an emulated range; null if it isn't all in the memory
 	uint8_t const* MemoryAt(uint64_t address, size_t size) const;
 	LRESULT OnSourceCharAdded(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
+	LRESULT OnEditorFileDropped(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
+	LRESULT OnDropFiles(UINT /*uMsg*/, WPARAM wParam, LPARAM /*lParam*/, BOOL& /*bHandled*/);
+	LRESULT OnOpenDropped(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
+	LRESULT OnViewTab(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnAssemble(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnAssembler(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnAssemblerSelected(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
@@ -308,4 +318,5 @@ private:
 	bool m_CodeRan{ false };	// since the emulator was set up
 	bool m_RestartPending{ false };
 	int m_CurrentLine{ -1 };
+	CString m_DroppedFile;	// on an editor, to open (WM_OPEN_DROPPED)
 };
