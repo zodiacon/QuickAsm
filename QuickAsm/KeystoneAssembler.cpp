@@ -73,7 +73,8 @@ AssemblerResults KeystoneAssembler::Assemble(std::string const& source) {
 
     uint8_t* encoding;
     size_t size;
-    if (ks_asm(ks, source.c_str(), m_Address, &encoding, &size, &results.Instructions)) {
+    auto code = RemoveComments(source);
+    if (ks_asm(ks, code.c_str(), m_Address, &encoding, &size, &results.Instructions)) {
         results.Error = ks_errno(ks);
         results.Output = ks_strerror(ks_errno(ks));
     }
@@ -85,6 +86,34 @@ AssemblerResults KeystoneAssembler::Assemble(std::string const& source) {
     ks_close(ks);
 
     return results;
+}
+
+std::string KeystoneAssembler::RemoveComments(std::string const& source) {
+    // ';' to the end of the line, outside quotes (the lines stay where they are)
+    std::string code;
+    code.reserve(source.size());
+    char quote = 0;
+    bool comment = false;
+    for (auto ch : source) {
+        if (ch == '\n') {
+            comment = false;
+            quote = 0;
+        }
+        else if (comment)
+            continue;
+        else if (quote) {
+            if (ch == quote)
+                quote = 0;
+        }
+        else if (ch == '\'' || ch == '"')
+            quote = ch;
+        else if (ch == ';') {
+            comment = true;
+            continue;
+        }
+        code += ch;
+    }
+    return code;
 }
 
 void KeystoneAssembler::SetMode(ks_mode mode) {

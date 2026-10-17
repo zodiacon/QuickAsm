@@ -12,7 +12,7 @@ void CMainFrame::InitEmulator(uint8_t const* data, size_t size, bool keepBreakpo
 	}
 	m_Emulator.Close();
 	m_CodeRan = false;
-	m_Disassembly.SetCurrentLine(-1);
+	ShowCurrentLine(-1);
 	m_CurrentLine = -1;
 	if (!keepBreakpoints) {
 		{
@@ -81,7 +81,7 @@ void CMainFrame::Run(bool stepInto, uint64_t stopAt, bool stepOut) {
 		m_StepOutSP = ReadStackPointer();
 
 	if (m_EmulatorState == EmulatorState::Paused) {
-		m_Disassembly.SetCurrentLine(-1);
+		ShowCurrentLine(-1);
 		m_EmulatorState = EmulatorState::Running;
 		m_RegistersView.SetLive(false);
 		m_StatusBar.SetText(1, L"Running");
@@ -160,13 +160,18 @@ void CMainFrame::StopEmulator() {
 	// (its message, posted when it ended, finds the emulator idle)
 	m_EmulatorState = EmulatorState::Idle;
 	m_RegistersView.SetLive(true);
-	m_Disassembly.SetCurrentLine(-1);
+	ShowCurrentLine(-1);
 	m_StatusBar.SetText(1, L"Idle");
+}
+
+void CMainFrame::ShowCurrentLine(int line) {
+	m_Disassembly.SetCurrentLine(line);
+	m_AsmSource.SetCurrentLine(SourceLineFromDisassemblyLine(line));
 }
 
 void CMainFrame::ShowEmulatorState(int line) {
 	m_CurrentLine = line;
-	m_Disassembly.SetCurrentLine(line);
+	ShowCurrentLine(line);
 	m_RegistersView.MarkChanges();
 	m_RegistersView.SetLive(true);
 	m_MemoryView.Refresh();
@@ -400,13 +405,11 @@ LRESULT CMainFrame::OnDeleteAllBreakpoints(WORD, WORD, HWND, BOOL&) {
 
 LRESULT CMainFrame::OnDisassemblyDoubleClick(int, LPNMHDR pnmh, BOOL&) {
 	auto scn = (SCNotification*)pnmh;
-	// an assembly error ("<line>: ...") shows its line in the source
-	if (m_Instructions.empty()) {
-		auto line = ParseErrorLine(m_Disassembly.GetLine(scn->line));
-		if (line >= 0 && line < (int)m_AsmSource.Execute(SCI_GETLINECOUNT)) {
-			m_AsmSource.GotoLine(line);
-			m_AsmSource.SetFocus();
-		}
+	// an assembly error ("<line>: ...") or an instruction shows its line in the source
+	auto line = m_Instructions.empty() ? ParseErrorLine(m_Disassembly.GetLine(scn->line)) : SourceLineFromDisassemblyLine((int)scn->line);
+	if (line >= 0 && line < (int)m_AsmSource.Execute(SCI_GETLINECOUNT)) {
+		m_AsmSource.GotoLine(line);
+		m_AsmSource.SetFocus();
 	}
 	return 0;
 }

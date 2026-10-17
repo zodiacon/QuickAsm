@@ -60,9 +60,11 @@ AssemblerResults NasmAssembler::AssembleFile(std::wstring const& file) {
 	tempFiles.push_back(tempOutput);
 	auto objOutput = file.substr(0, file.rfind(L'.')) + L".bin";
 	tempFiles.push_back(objOutput);
+	auto listing = Helpers::GetTempFilePath(L"lst");
+	tempFiles.push_back(listing);
 
 	// (quoted: the paths may have spaces)
-	auto fullcmdline = L"\"" + m_NasmPath + L"\" -Z \"" + tempOutput + L"\" -o \"" + objOutput + L"\" \"" + srcFile + L"\"";
+	auto fullcmdline = L"\"" + m_NasmPath + L"\" -Z \"" + tempOutput + L"\" -l \"" + listing + L"\" -o \"" + objOutput + L"\" \"" + srcFile + L"\"";
 	PROCESS_INFORMATION pi{};
 	STARTUPINFO si{ sizeof(si) };
 	if (!::CreateProcess(nullptr, fullcmdline.data(), nullptr, nullptr, FALSE,
@@ -102,5 +104,39 @@ AssemblerResults NasmAssembler::AssembleFile(std::wstring const& file) {
 		return results;
 	}
 	results.Bytes = Helpers::ReadFileContents(objOutput.c_str());
+	results.SourceLines = ParseListing(listing, extraLines);
 	return results;
+}
+
+std::vector<std::pair<uint32_t, int>> NasmAssembler::ParseListing(std::wstring const& path, int extraLines) {
+	//
+	// the listing's lines: the source line number (6 wide), the offset (8 hex digits) of what it made, its bytes,
+	// and the source, after "<n>" (at column 36) in a macro's expansion; there the line numbers are the macro's
+	// definition: the code goes to the line that used the macro instead
+	//
+	std::vector<std::pair<uint32_t, int>> lines;
+	std::ifstream stm(path);
+	int usingLine = 0;
+	uint32_t lastOffset = UINT32_MAX;
+	for (std::string text; std::getline(stm, text); ) {
+		if (text.size() < 15 || !std::isdigit((unsigned char)text[5]))
+			continue;
+		auto number = std::atoi(text.substr(0, 6).c_str());
+		bool expansion = text.size() > 36 && text[36] == '<';
+		if (!expansion)
+			usingLine = number;
+
+		auto offset = text.substr(7, 8);
+		if (text[6] != ' ' || !std::ranges::all_of(offset, [](char ch) { return std::isxdigit((unsigned char)ch) != 0; }))
+			continue;
+		auto value = (uint32_t)std::stoul(offset, nullptr, 16);
+		// (a line's bytes may go on in the next line, at another offset: the first is the code's)
+		if (value == lastOffset)
+			continue;
+		lastOffset = value;
+		auto line = (expansion ? usingLine : number) - extraLines - 1;
+		if (line >= 0)
+			lines.emplace_back(value, line);
+	}
+	return lines;
 }

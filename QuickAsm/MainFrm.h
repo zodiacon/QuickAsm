@@ -115,6 +115,12 @@ private:
 	bool DoSaveAs();
 	void Assemble();
 	void ShowWarnings(std::string const& warnings);
+	// the source line of each instruction: from the assembler, or (if it doesn't tell) the source's instruction lines in order
+	void MapSourceLines(std::vector<std::pair<uint32_t, int>> const& sourceLines);
+	// the source line of the instruction at a line of the disassembly (-1: none, or the source changed since)
+	int SourceLineFromDisassemblyLine(int line) const;
+	// the current instruction (-1: none), in the disassembly and the source
+	void ShowCurrentLine(int line);
 	static std::vector<int> GetErrorLines(std::string const& errors);
 	// the line of an error ("<line>: ..."), 0 based; -1 if none
 	static int ParseErrorLine(std::string const& text);
@@ -204,6 +210,8 @@ private:
 	std::vector<uint8_t> m_AsmBytes;
 	std::vector<Instruction> m_Instructions;
 	std::unordered_map<uint64_t, int> m_AddressToLine;
+	std::unordered_map<uint64_t, int> m_AddressToSourceLine;
+	std::string m_AssembledSource;	// (the source lines are of this text)
 
 	// emulator: what the emulator thread uses is set before it runs or while it waits in the code hook,
 	// except the breakpoints (which can be toggled while it runs)

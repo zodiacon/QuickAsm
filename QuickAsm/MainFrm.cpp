@@ -241,6 +241,8 @@ void CMainFrame::Assemble() {
 	auto results = assembler->Assemble(m_AsmSource.GetAllText());
 	ShowWarnings(results.Error ? std::string() : results.Output);
 	m_AsmSource.MarkErrorLines(results.Error ? GetErrorLines(results.Output) : std::vector<int>());
+	m_AssembledSource.clear();
+	m_AddressToSourceLine.clear();
 	if (results.Error) {
 		m_AsmBytes.clear();
 		m_Instructions.clear();
@@ -261,6 +263,66 @@ void CMainFrame::Assemble() {
 		m_AsmBytes.clear();
 	}
 	Disassemble(m_AsmBytes.data(), m_AsmBytes.size());
+	m_AssembledSource = m_AsmSource.GetAllText();
+	MapSourceLines(results.SourceLines);
+}
+
+void CMainFrame::MapSourceLines(std::vector<std::pair<uint32_t, int>> const& sourceLines) {
+	m_AddressToSourceLine.clear();
+	if (m_Instructions.empty())
+		return;
+
+	if (!sourceLines.empty()) {
+		for (auto& [offset, line] : sourceLines)
+			m_AddressToSourceLine.try_emplace(m_Address + offset, line);
+		return;
+	}
+
+	// the lines with an instruction: not empty after the comment and any labels, not a directive
+	std::vector<int> lines;
+	auto& text = m_AssembledSource;
+	int number = 0;
+	for (size_t start = 0, end; start < text.size(); start = end + 1, number++) {
+		end = text.find('\n', start);
+		if (end == std::string::npos)
+			end = text.size();
+		auto line = text.substr(start, end - start);
+		if (auto semicolon = line.find(';'); semicolon != std::string::npos)
+			line.resize(semicolon);
+		auto trim = [](std::string& s) {
+			auto first = s.find_first_not_of(" \t\r");
+			s = first == std::string::npos ? std::string() : s.substr(first, s.find_last_not_of(" \t\r") - first + 1);
+			};
+		trim(line);
+		// labels ("name:")
+		for (;;) {
+			auto colon = line.find(':');
+			if (colon == std::string::npos || colon == 0 || !std::all_of(line.begin(), line.begin() + colon,
+				[](char ch) { return std::isalnum((unsigned char)ch) || ch == '_' || ch == '.' || ch == '@' || ch == '$'; }))
+				break;
+			line = line.substr(colon + 1);
+			trim(line);
+		}
+		if (!line.empty() && line[0] != '.')
+			lines.push_back(number);
+	}
+	// (not one for each instruction: data, or directives that make code; the lines would be wrong)
+	if (lines.size() != m_Instructions.size())
+		return;
+	for (size_t i = 0; i < lines.size(); i++)
+		m_AddressToSourceLine[m_Instructions[i].Address] = lines[i];
+}
+
+int CMainFrame::SourceLineFromDisassemblyLine(int line) const {
+	if (line < 0 || line >= (int)m_Instructions.size() || m_AddressToSourceLine.empty())
+		return -1;
+	auto it = m_AddressToSourceLine.find(m_Instructions[line].Address);
+	if (it == m_AddressToSourceLine.end())
+		return -1;
+	// the lines are of the text that was assembled
+	if (m_AsmSource.GetAllText() != m_AssembledSource)
+		return -1;
+	return it->second;
 }
 
 std::vector<int> CMainFrame::GetErrorLines(std::string const& errors) {
@@ -356,6 +418,8 @@ bool CMainFrame::OpenFile(PCWSTR file) {
 			return false;
 		}
 		m_AsmBytes = std::move(bytes);
+		m_AssembledSource.clear();
+		m_AddressToSourceLine.clear();
 		Disassemble(m_AsmBytes.data(), m_AsmBytes.size());
 		AddRecentFile(path);
 		return true;

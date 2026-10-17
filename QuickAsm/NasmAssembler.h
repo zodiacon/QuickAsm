@@ -11,6 +11,9 @@ public:
 	std::wstring const& GetNasmPath() const;
 
 private:
+	// the source line (0 based) of each offset, from nasm's listing (extraLines: the lines added before the source)
+	static std::vector<std::pair<uint32_t, int>> ParseListing(std::wstring const& path, int extraLines);
+
 	std::wstring m_NasmPath;
 	std::wstring m_NasmDir;
 };
