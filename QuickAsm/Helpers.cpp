@@ -42,7 +42,7 @@ PCWSTR Helpers::RegisterTypeToString(RegisterType type) {
     return L"";
 }
 
-wxString Helpers::CPUFlagsToString(uint32_t value) {
+CString Helpers::CPUFlagsToString(uint32_t value) {
     static const struct {
         int bit;
         PCWSTR text;
@@ -62,16 +62,16 @@ wxString Helpers::CPUFlagsToString(uint32_t value) {
         { 20, L"VIP" },
         { 21, L"ID" },
     };
-    wxString text;
+    CString text;
     for (auto& f : flags)
         if (value & (1 << f.bit))
-            text += wxString(f.text) + L"=1 ";
+            text += f.text + CString(L"=1 ");
 
-    text += wxString(L"IOPL=") + std::to_wstring((value & (1 << 12) || (1 << 13)) >> 12).c_str();
+    text.AppendFormat(L"IOPL=%u", (value >> 12) & 3);
     return text;
 }
 
-wxString Helpers::CR0ToString(uint64_t value) {
+CString Helpers::CR0ToString(uint64_t value) {
     static const struct {
         int bit;
         PCWSTR text;
@@ -89,9 +89,9 @@ wxString Helpers::CR0ToString(uint64_t value) {
         { 31, L"PG" },
     };
 
-    wxString text;
+    CString text;
     for (auto& b : bits)
         if (value & (1LL << b.bit))
-            text += wxString(b.text) + L"=1 ";
+            text += b.text + CString(L"=1 ");
     return text;
 }

@@ -273,7 +273,7 @@ BOOL HexView::OnCopy() {
 
 				std::string sdata;
 				char single[4];
-				for (int i = 0; i < sellen; i++) {
+				for (ULONG i = 0; i < sellen; i++) {
 					sprintf_s(single, "%02X ", data[i]);
 					sdata += single;
 				}
