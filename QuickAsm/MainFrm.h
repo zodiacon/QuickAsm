@@ -3,7 +3,10 @@
 #include "resource.h"
 #include "AsmEditor.h"
 #include "CapstoneEngine.h"
+#include "UnicornEngine.h"
+#include "RegistersView.h"
 #include <CustomSplitterWindow.h>
+#include <NativeCustomTabView.h>
 
 class AssemblerBase;
 
@@ -68,6 +71,9 @@ private:
 	bool DoSaveAs();
 	void Assemble();
 	void Disassemble(uint8_t const* data, size_t size);
+	// the emulator gets the code (at m_Address) after it was disassembled
+	void InitEmulator(uint8_t const* data, size_t size);
+	void CreateBottomPane();
 
 	LRESULT OnCreate(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnClose(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& bHandled);
@@ -88,8 +94,14 @@ private:
 
 	CStatusBarCtrl m_StatusBar;
 	CCustomSplitterWindow m_Splitter;
+	CCustomHorSplitterWindow m_RightSplitter;
 	CAsmEditor m_AsmSource;
 	CAsmEditor m_Disassembly;
+	CNativeCustomTabView m_Tabs;
+	UnicornEngine m_Emulator;
+	CRegistersView m_RegistersView{ m_Emulator };
+	CStatic m_MemoryPlaceholder, m_BreakpointsPlaceholder;
+	std::vector<uint8_t> m_Memory;
 	CString m_FileName;
 	std::vector<std::unique_ptr<AssemblerBase>> m_Assemblers;
 	int m_AssemblerIndex{ 1 };

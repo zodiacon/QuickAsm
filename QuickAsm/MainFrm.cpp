@@ -9,6 +9,7 @@
 #include <fstream>
 
 CMainFrame::CMainFrame() {
+	m_Memory.resize(1 << 16);
 	m_Assemblers.push_back(std::make_unique<KeystoneAssembler>());
 	m_Assemblers.push_back(std::make_unique<NasmAssembler>());
 }
@@ -16,7 +17,10 @@ CMainFrame::CMainFrame() {
 CMainFrame::~CMainFrame() = default;
 
 BOOL CMainFrame::PreTranslateMessage(MSG* pMsg) {
-	return CFrameWindowImpl<CMainFrame>::PreTranslateMessage(pMsg);
+	if (CFrameWindowImpl<CMainFrame>::PreTranslateMessage(pMsg))
+		return TRUE;
+
+	return m_Tabs.PreTranslateMessage(pMsg);
 }
 
 BOOL CMainFrame::OnIdle() {
@@ -151,6 +155,7 @@ void CMainFrame::Assemble() {
 		m_Disassembly.SetReadOnly(false);
 		m_Disassembly.SetText(results.Output.c_str());
 		m_Disassembly.SetReadOnly(true);
+		InitEmulator(nullptr, 0);
 		m_StatusBar.SetText(0, L"Assembly failed");
 		return;
 	}
@@ -178,6 +183,7 @@ void CMainFrame::Disassemble(uint8_t const* data, size_t size) {
 	m_Disassembly.SetReadOnly(false);
 	m_Disassembly.SetText(text);
 	m_Disassembly.SetReadOnly(true);
+	InitEmulator(data, size);
 
 	CString status;
 	status.Format(L"%zu instructions, %zu bytes", m_Instructions.size(), size);
@@ -212,6 +218,36 @@ bool CMainFrame::OpenFile(PCWSTR path) {
 	return true;
 }
 
+void CMainFrame::InitEmulator(uint8_t const* data, size_t size) {
+	m_Emulator.Close();
+	if (!m_Instructions.empty() && m_Emulator.Open(CpuArch::x86, (CpuMode)(1 << (1 + (int)m_AsmMode)))) {
+		std::ranges::fill(m_Memory, uint8_t(0));
+		m_Emulator.MapHostMemory(0, m_Memory.size(), MemProtection::All, m_Memory.data());
+		m_Emulator.WriteMemory(m_Instructions[0].Address, data, size);
+	}
+	m_RegistersView.Refresh();
+}
+
+void CMainFrame::CreateBottomPane() {
+	m_Tabs.m_bTabCloseButton = FALSE;
+	m_Tabs.Create(m_RightSplitter, rcDefault, nullptr, WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
+	CImageList images;
+	images.Create(16, 16, ILC_COLOR32, 3, 0);
+	for (auto id : { IDI_REGISTERS, IDI_MEMORY, IDI_BREAKPOINT })
+		images.AddIcon(AtlLoadIconImage(id, 0, 16, 16));
+	m_Tabs.SetImageList(images);	// (destroyed by the tab view)
+
+	m_RegistersView.Create(m_Tabs, rcDefault, nullptr, WS_CHILD | WS_CLIPCHILDREN);
+	// not ported yet
+	m_MemoryPlaceholder.Create(m_Tabs, rcDefault, L"Memory view: not ported yet", WS_CHILD | SS_CENTER | SS_CENTERIMAGE);
+	m_BreakpointsPlaceholder.Create(m_Tabs, rcDefault, L"Breakpoints: not ported yet", WS_CHILD | SS_CENTER | SS_CENTERIMAGE);
+
+	m_Tabs.AddPage(m_RegistersView, L"Registers", 0);
+	m_Tabs.AddPage(m_MemoryPlaceholder, L"Memory", 1);
+	m_Tabs.AddPage(m_BreakpointsPlaceholder, L"Breakpoints", 2);
+	m_Tabs.SetActivePage(0);
+}
+
 LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	auto& settings = AppSettings::Get();
 
@@ -225,9 +261,13 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 
 	m_hWndClient = m_Splitter.Create(m_hWnd, rcDefault, nullptr, WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
 	m_AsmSource.Create(m_Splitter, IDC_ASM_SOURCE);
-	m_Disassembly.Create(m_Splitter, IDC_DISASSEMBLY, true);
-	m_Splitter.SetSplitterPanes(m_AsmSource, m_Disassembly);
+	m_RightSplitter.Create(m_Splitter, rcDefault, nullptr, WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
+	m_Disassembly.Create(m_RightSplitter, IDC_DISASSEMBLY, true);
+	CreateBottomPane();
+	m_RightSplitter.SetSplitterPanes(m_Disassembly, m_Tabs);
+	m_Splitter.SetSplitterPanes(m_AsmSource, m_RightSplitter);
 	m_Splitter.SetSplitterPosPct(40);
+	m_RightSplitter.SetSplitterPosPct(50);
 
 	auto pLoop = _Module.GetMessageLoop();
 	ATLASSERT(pLoop);
@@ -330,6 +370,7 @@ LRESULT CMainFrame::OnFileClose(WORD, WORD, HWND, BOOL&) {
 	m_Disassembly.SetReadOnly(true);
 	m_AsmBytes.clear();
 	m_Instructions.clear();
+	InitEmulator(nullptr, 0);
 	m_FileName.Empty();
 	UpdateTitle();
 	return 0;

@@ -3,6 +3,7 @@
 // Used by QuickAsm.rc
 //
 #define IDR_MAINFRAME                   128
+#define IDD_EDITVALUE                   129
 
 #define IDI_RESTART                     200
 #define IDI_8BIT                        201
@@ -36,6 +37,8 @@
 
 #define IDC_ASM_SOURCE                  1001
 #define IDC_DISASSEMBLY                 1002
+#define IDC_VALUE                       1003
+#define IDC_REGISTERS                   1004
 
 #define ID_ASM_ASSEMBLE                 32800
 #define ID_ASM_RUN                      32801
@@ -52,6 +55,12 @@
 // the assemblers must stay consecutive, in the order of CMainFrame::m_Assemblers
 #define ID_ASSEMBLER_KEYSTONE           32815
 #define ID_ASSEMBLER_NASM               32816
+// the four register sizes must stay consecutive
+#define ID_REGS_8BIT                    32830
+#define ID_REGS_16BIT                   32831
+#define ID_REGS_32BIT                   32832
+#define ID_REGS_64BIT                   32833
+#define ID_REGS_EDIT                    32834
 // the three themes must stay consecutive, in DarkModeKind order (Light, Dark, System)
 #define ID_THEME_LIGHT                  32820
 #define ID_THEME_DARK                   32821
@@ -61,9 +70,9 @@
 //
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        129
-#define _APS_NEXT_COMMAND_VALUE         32830
-#define _APS_NEXT_CONTROL_VALUE         1003
+#define _APS_NEXT_RESOURCE_VALUE        130
+#define _APS_NEXT_COMMAND_VALUE         32840
+#define _APS_NEXT_CONTROL_VALUE         1005
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

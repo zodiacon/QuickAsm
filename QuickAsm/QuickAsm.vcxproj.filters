@@ -45,6 +45,12 @@
     <ClInclude Include="AsmEditor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="EditValueDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RegistersView.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="ScintillaCtrl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -87,6 +93,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="AsmEditor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RegistersView.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="QuickAsm.cpp">
