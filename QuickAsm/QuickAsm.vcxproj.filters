@@ -189,6 +189,9 @@
     <Image Include="Icons\binary.ico">
       <Filter>Resource Files\Icons</Filter>
     </Image>
+    <Image Include="Icons\stack.ico">
+      <Filter>Resource Files\Icons</Filter>
+    </Image>
     <Image Include="Icons\copy.ico">
       <Filter>Resource Files\Icons</Filter>
     </Image>
