@@ -10,7 +10,9 @@
 CAppModule _Module;
 AppSettings g_Settings;
 
-int Run(LPCTSTR /*lpstrCmdLine*/ = nullptr, int nCmdShow = SW_SHOWDEFAULT) {
+#pragma comment(lib, "imm32")
+
+int Run(int nCmdShow = SW_SHOWDEFAULT) {
 	CMessageLoop theLoop;
 	_Module.AddMessageLoop(&theLoop);
 
@@ -21,6 +23,8 @@ int Run(LPCTSTR /*lpstrCmdLine*/ = nullptr, int nCmdShow = SW_SHOWDEFAULT) {
 	}
 
 	wndMain.ShowWindow(nCmdShow);
+	if (__argc > 1)
+		wndMain.OpenFile(__wargv[1]);
 
 	int nRet = theLoop.Run();
 
@@ -28,7 +32,7 @@ int Run(LPCTSTR /*lpstrCmdLine*/ = nullptr, int nCmdShow = SW_SHOWDEFAULT) {
 	return nRet;
 }
 
-int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lpstrCmdLine, int nCmdShow) {
+int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR /*lpstrCmdLine*/, int nCmdShow) {
 	HRESULT hRes = ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 	ATLASSERT(SUCCEEDED(hRes));
 
@@ -40,11 +44,13 @@ int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lp
 	hRes = _Module.Init(nullptr, hInstance);
 	ATLASSERT(SUCCEEDED(hRes));
 
+	Scintilla_RegisterClasses(hInstance);
 	WTLHelper::InitDarkMode(settings.EffectiveTheme());
 
-	int nRet = Run(lpstrCmdLine, nCmdShow);
+	int nRet = Run(nCmdShow);
 	settings.Save();
 
+	Scintilla_ReleaseResources();
 	_Module.Term();
 	::CoUninitialize();
 

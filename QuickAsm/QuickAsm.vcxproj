@@ -81,6 +81,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
@@ -104,6 +105,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -129,6 +131,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -147,6 +150,8 @@
     <ClInclude Include="Helpers.h" />
     <ClInclude Include="KeystoneAssembler.h" />
     <ClInclude Include="AppSettings.h" />
+    <ClInclude Include="AsmEditor.h" />
+    <ClInclude Include="ScintillaCtrl.h" />
     <ClInclude Include="Interfaces.h" />
     <ClInclude Include="MainFrm.h" />
     <ClInclude Include="NasmAssembler.h" />
@@ -166,6 +171,7 @@
     <ClCompile Include="CapstoneEngine.cpp" />
     <ClCompile Include="Helpers.cpp" />
     <ClCompile Include="KeystoneAssembler.cpp" />
+    <ClCompile Include="AsmEditor.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="QuickAsm.cpp" />
     <ClCompile Include="NasmAssembler.cpp" />

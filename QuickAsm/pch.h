@@ -35,5 +35,9 @@ extern CAppModule _Module;
 #include <capstone/capstone.h>
 #include <unicorn/unicorn.h>
 #include <wil/resource.h>
+#include <scintilla/Scintilla.h>
+#include <scintilla/ILexer.h>
+#include <lexilla/Lexilla.h>
+#include <lexilla/SciLexer.h>
 
 #pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'\"")

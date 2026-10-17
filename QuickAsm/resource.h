@@ -34,6 +34,9 @@
 #define IDI_STEPINTO                    227
 #define IDI_STEPOUT                     228
 
+#define IDC_ASM_SOURCE                  1001
+#define IDC_DISASSEMBLY                 1002
+
 #define ID_ASM_ASSEMBLE                 32800
 #define ID_ASM_RUN                      32801
 #define ID_ASM_STOP                     32802
@@ -46,6 +49,9 @@
 #define ID_MODE_16BIT                   32810
 #define ID_MODE_32BIT                   32811
 #define ID_MODE_64BIT                   32812
+// the assemblers must stay consecutive, in the order of CMainFrame::m_Assemblers
+#define ID_ASSEMBLER_KEYSTONE           32815
+#define ID_ASSEMBLER_NASM               32816
 // the three themes must stay consecutive, in DarkModeKind order (Light, Dark, System)
 #define ID_THEME_LIGHT                  32820
 #define ID_THEME_DARK                   32821
@@ -57,7 +63,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        129
 #define _APS_NEXT_COMMAND_VALUE         32830
-#define _APS_NEXT_CONTROL_VALUE         1000
+#define _APS_NEXT_CONTROL_VALUE         1003
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
