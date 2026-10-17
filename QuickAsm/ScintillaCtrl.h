@@ -536,18 +536,18 @@ public:
 	void MarkerEnableHighlight(bool enabled);
 
 	int MarkerAdd(Line line, int markerNumber) {
-		return Execute(SCI_MARKERADD, line, markerNumber);
+		return (int)Execute(SCI_MARKERADD, line, markerNumber);
 	}
 
 	void MarkerDelete(Line line, int markerNumber) {
 		Execute(SCI_MARKERDELETE, line, markerNumber);
 	}
 	void MarkerDeleteAll(int markerNumber) {
-		Execute(SCI_MARKERDELETEALL);
+		Execute(SCI_MARKERDELETEALL, markerNumber);
 	}
 
 	int MarkerGet(Line line) const {
-		return Execute(SCI_MARKERGET, line);
+		return (int)Execute(SCI_MARKERGET, line);
 	}
 
 	Line MarkerNext(Line lineStart, int markerMask) const;
@@ -917,8 +917,8 @@ public:
 		return Execute(SCI_GETTEXTLENGTH);
 	}
 
-	SciFnDirect m_Sci;
-	sptr_t m_SciWndData;
+	SciFnDirect m_Sci{ nullptr };
+	sptr_t m_SciWndData{ 0 };
 };
 
 using CScintillaCtrl = CScintillaCtrlT<CWindow>;
