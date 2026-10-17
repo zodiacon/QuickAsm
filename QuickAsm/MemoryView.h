@@ -8,6 +8,10 @@ class CFixedMemoryBuffer : public IBufferManager {
 public:
 	explicit CFixedMemoryBuffer(std::vector<uint8_t>& memory) : m_Memory(memory) {}
 
+	std::vector<uint8_t> const& GetMemory() const {
+		return m_Memory;
+	}
+
 	uint32_t GetData(int64_t offset, uint8_t* buffer, uint32_t count) override;
 	bool Insert(int64_t, const uint8_t*, uint32_t) override {
 		return false;
@@ -45,6 +49,10 @@ public:
 	void Refresh();
 	// the memory was set up again: what was changed before (and could be undone) is gone
 	void Reset();
+	// the memory to compare with at the next stop: before the code runs
+	void TakeSnapshot();
+	// the bytes the code changed since the snapshot are highlighted: at a stop
+	void MarkChanges();
 	void GotoAddress(uint64_t address);
 	// the colors of the current theme (light or dark)
 	void ApplyTheme();
@@ -62,6 +70,7 @@ private:
 	static const UINT WM_GOTO_PENDING = WM_APP + 1;
 
 	void GotoPending();
+	void HighlightChanges();
 
 	LRESULT OnCreate(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnSize(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
@@ -74,5 +83,7 @@ private:
 	CHexControl m_Hex;
 	// shown once the view has a size (scrolling to it before does nothing)
 	int64_t m_PendingAddress{ -1 };
+	std::vector<uint8_t> m_Snapshot;
+	std::vector<std::pair<int64_t, int64_t>> m_Changes;	// offset, length
 	CToolBarCtrl m_ToolBar;
 };

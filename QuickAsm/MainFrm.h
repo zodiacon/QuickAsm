@@ -10,6 +10,7 @@
 #include "BreakpointsView.h"
 #include "RecentFilesManager.h"
 #include "StackView.h"
+#include "Expression.h"
 #include <CustomSplitterWindow.h>
 #include <NativeCustomTabView.h>
 #include <mutex>
@@ -40,6 +41,7 @@ public:
 	void DeleteBreakpoint(uint64_t address) override;
 	void DeleteAllBreakpoints() override;
 	void GoToBreakpoint(uint64_t address) override;
+	void EditBreakpoint(uint64_t address) override;
 	BOOL OnIdle() override;
 
 	BEGIN_MSG_MAP(CMainFrame)
@@ -87,6 +89,7 @@ public:
 		COMMAND_ID_HANDLER(ID_ASM_TOGGLEBP, OnToggleBreakpoint)
 		COMMAND_ID_HANDLER(ID_ASM_ENABLEBP, OnEnableBreakpoint)
 		COMMAND_ID_HANDLER(ID_ASM_DELETEALLBP, OnDeleteAllBreakpoints)
+		COMMAND_ID_HANDLER(ID_ASM_BPCONDITION, OnBreakpointCondition)
 		COMMAND_RANGE_HANDLER(ID_MODE_16BIT, ID_MODE_64BIT, OnAsmMode)
 		COMMAND_RANGE_HANDLER(ID_THEME_LIGHT, ID_THEME_SYSTEM, OnTheme)
 		CHAIN_MSG_MAP(CAutoUpdateUI<CMainFrame>)
@@ -104,8 +107,16 @@ private:
 		Paused,		// at a breakpoint or after a step: the emulator thread waits in the code hook
 	};
 
+	struct Breakpoint {
+		bool Enabled{ true };
+		std::string Condition;
+		std::shared_ptr<Expression> Expr;	// (the condition's)
+		uint32_t HitTarget{ 0 };
+		uint32_t Hits{ 0 };
+	};
+
 	// posted by the emulator thread
-	static const UINT WM_EMULATOR_PAUSED = WM_APP + 10;	// lParam: the address
+	static const UINT WM_EMULATOR_PAUSED = WM_APP + 10;	// lParam: the address; wParam: TRUE if a breakpoint's condition couldn't be evaluated
 	static const UINT WM_EMULATOR_DONE = WM_APP + 11;	// wParam: uc_err
 
 	void InitMenu(HMENU hMenu);
@@ -172,6 +183,11 @@ private:
 	LRESULT OnToggleBreakpoint(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnEnableBreakpoint(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnDeleteAllBreakpoints(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnBreakpointCondition(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	// asks for a breakpoint's condition (create: a new breakpoint there if it's set)
+	void EditBreakpoint(uint64_t address, bool create);
+	// true: break (also if the condition can't be evaluated: error is set); counts the hit (called on the emulator thread)
+	bool CheckBreakpoint(Breakpoint& bp, bool& error);
 	void ToggleBreakpoint(int line);
 	// the disassembly line of the code of a source line: -1 if none (or the source changed since it was assembled)
 	int DisassemblyLineFromSourceLine(int sourceLine);
@@ -244,7 +260,7 @@ private:
 	wil::unique_threadpool_work m_EmulatorWork;
 	void* m_CodeHook{ nullptr };
 	wil::unique_event m_ContinueEvent{ wil::EventOptions::None }, m_StopEvent{ wil::EventOptions::None };
-	std::map<uint64_t, bool> m_Breakpoints;	// address -> enabled
+	std::map<uint64_t, Breakpoint> m_Breakpoints;
 	mutable std::mutex m_BreakpointsLock;
 	std::atomic<bool> m_StepInto{ false };
 	std::atomic<uint64_t> m_StopAt{ 0 };	// a one-time stop (step over, run to cursor)

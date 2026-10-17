@@ -3,9 +3,9 @@
 // Used by QuickAsm.rc
 //
 #define IDR_MAINFRAME                   128
-#define IDD_EDITVALUE                   129
 #define IDR_NASM                        130
 #define IDD_ABOUTBOX                    131
+#define IDD_BREAKPOINT                  132
 
 #define IDI_RESTART                     200
 #define IDI_8BIT                        201
@@ -40,7 +40,6 @@
 
 #define IDC_ASM_SOURCE                  1001
 #define IDC_DISASSEMBLY                 1002
-#define IDC_VALUE                       1003
 #define IDC_REGISTERS                   1004
 #define IDC_ASSEMBLER                   1005
 #define IDC_ADDRESS                     1006
@@ -49,6 +48,8 @@
 #define IDC_LINK                        1009
 #define IDC_BREAKPOINTS                 1010
 #define IDC_STACK                       1011
+#define IDC_CONDITION                   1012
+#define IDC_HITCOUNT                    1013
 
 #define ID_ASM_ASSEMBLE                 32800
 #define ID_ASM_RUN                      32801
@@ -86,6 +87,8 @@
 #define ID_BREAKPOINTS_DISABLEALL       32843
 #define ID_EDIT_FINDNEXT                32844
 #define ID_EDIT_FINDPREV                32845
+#define ID_ASM_BPCONDITION              32846
+#define ID_BREAKPOINTS_CONDITION        32847
 // the three themes must stay consecutive, in DarkModeKind order (Light, Dark, System)
 #define ID_THEME_LIGHT                  32820
 #define ID_THEME_DARK                   32821
@@ -95,9 +98,9 @@
 //
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        132
-#define _APS_NEXT_COMMAND_VALUE         32846
-#define _APS_NEXT_CONTROL_VALUE         1012
+#define _APS_NEXT_RESOURCE_VALUE        133
+#define _APS_NEXT_COMMAND_VALUE         32848
+#define _APS_NEXT_CONTROL_VALUE         1014
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

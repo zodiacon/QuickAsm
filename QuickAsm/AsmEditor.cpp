@@ -102,6 +102,8 @@ HWND CAsmEditor::Create(HWND hParent, UINT id, bool readOnly) {
 	MarkerDefine(BreakpointMarker, Scintilla::MarkerSymbol::Circle);
 	MarkerDefine(CurrentLineMarker, Scintilla::MarkerSymbol::ShortArrow);
 	MarkerDefine(DisabledBreakpointMarker, Scintilla::MarkerSymbol::Circle);
+	MarkerDefine(ConditionalBreakpointMarker, Scintilla::MarkerSymbol::CirclePlus);
+	MarkerDefine(DisabledConditionalBreakpointMarker, Scintilla::MarkerSymbol::CirclePlus);
 	Execute(SCI_INDICSETSTYLE, CurrentLineIndicator, INDIC_FULLBOX);
 	Execute(SCI_INDICSETSTYLE, ErrorIndicator, INDIC_SQUIGGLEPIXMAP);
 
@@ -143,11 +145,17 @@ void CAsmEditor::ApplyTheme() {
 	Execute(SCI_SETELEMENTCOLOUR, SC_ELEMENT_CARET, ::GetSysColor(COLOR_WINDOWTEXT) | 0xFF000000);
 	Execute(SCI_SETELEMENTCOLOUR, SC_ELEMENT_SELECTION_BACK, (dark ? RGB(38, 79, 120) : RGB(173, 214, 255)) | 0xFF000000);
 
-	MarkerSetBack(BreakpointMarker, dark ? RGB(220, 40, 40) : RGB(128, 0, 0));
-	MarkerSetFore(BreakpointMarker, dark ? RGB(220, 40, 40) : RGB(128, 0, 0));
+	auto bpColor = dark ? RGB(220, 40, 40) : RGB(128, 0, 0);
+	MarkerSetBack(BreakpointMarker, bpColor);
+	MarkerSetFore(BreakpointMarker, bpColor);
 	// a hollow circle: filled with the margin's color
 	MarkerSetBack(DisabledBreakpointMarker, ::GetSysColor(COLOR_3DFACE));
-	MarkerSetFore(DisabledBreakpointMarker, dark ? RGB(220, 40, 40) : RGB(128, 0, 0));
+	MarkerSetFore(DisabledBreakpointMarker, bpColor);
+	// (a circle with a plus: filled with the fore color, its outline and plus in the back color)
+	MarkerSetFore(ConditionalBreakpointMarker, bpColor);
+	MarkerSetBack(ConditionalBreakpointMarker, ::GetSysColor(COLOR_3DFACE));
+	MarkerSetFore(DisabledConditionalBreakpointMarker, ::GetSysColor(COLOR_3DFACE));
+	MarkerSetBack(DisabledConditionalBreakpointMarker, bpColor);
 	MarkerSetBack(CurrentLineMarker, dark ? RGB(255, 220, 0) : RGB(255, 200, 0));
 	MarkerSetFore(CurrentLineMarker, dark ? RGB(160, 120, 0) : RGB(128, 96, 0));
 	Execute(SCI_INDICSETFORE, CurrentLineIndicator, dark ? RGB(160, 160, 0) : RGB(255, 255, 0));
@@ -155,11 +163,12 @@ void CAsmEditor::ApplyTheme() {
 	Execute(SCI_INDICSETFORE, ErrorIndicator, dark ? RGB(255, 80, 80) : RGB(220, 0, 0));
 }
 
-void CAsmEditor::SetBreakpointMarker(int line, bool exists, bool enabled) {
-	MarkerDelete(line, BreakpointMarker);
-	MarkerDelete(line, DisabledBreakpointMarker);
+void CAsmEditor::SetBreakpointMarker(int line, bool exists, bool enabled, bool conditional) {
+	for (auto marker : { BreakpointMarker, DisabledBreakpointMarker, ConditionalBreakpointMarker, DisabledConditionalBreakpointMarker })
+		MarkerDelete(line, marker);
 	if (exists)
-		MarkerAdd(line, enabled ? BreakpointMarker : DisabledBreakpointMarker);
+		MarkerAdd(line, conditional ? (enabled ? ConditionalBreakpointMarker : DisabledConditionalBreakpointMarker)
+			: (enabled ? BreakpointMarker : DisabledBreakpointMarker));
 }
 
 void CAsmEditor::MarkErrorLines(std::vector<int> const& lines) {
@@ -178,8 +187,8 @@ void CAsmEditor::MarkErrorLines(std::vector<int> const& lines) {
 }
 
 void CAsmEditor::DeleteBreakpointMarkers() {
-	MarkerDeleteAll(BreakpointMarker);
-	MarkerDeleteAll(DisabledBreakpointMarker);
+	for (auto marker : { BreakpointMarker, DisabledBreakpointMarker, ConditionalBreakpointMarker, DisabledConditionalBreakpointMarker })
+		MarkerDeleteAll(marker);
 }
 
 void CAsmEditor::SetCurrentLine(int line) {

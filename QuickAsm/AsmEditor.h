@@ -9,6 +9,8 @@ public:
 		BreakpointMarker = 1,
 		CurrentLineMarker = 2,
 		DisabledBreakpointMarker = 3,
+		ConditionalBreakpointMarker = 4,
+		DisabledConditionalBreakpointMarker = 5,
 		CurrentLineIndicator = 2,
 		ErrorIndicator = 3,
 	};
@@ -16,8 +18,8 @@ public:
 	HWND Create(HWND hParent, UINT id, bool readOnly = false);
 	// the colors of the current theme (light or dark)
 	void ApplyTheme();
-	// the breakpoint marker of a line: none, enabled or disabled
-	void SetBreakpointMarker(int line, bool exists, bool enabled = true);
+	// the breakpoint marker of a line: none, enabled or disabled; with a condition (or a hit count) or not
+	void SetBreakpointMarker(int line, bool exists, bool enabled = true, bool conditional = false);
 	void DeleteBreakpointMarkers();
 	// the lines with errors are underlined (none: the marks go)
 	void MarkErrorLines(std::vector<int> const& lines);

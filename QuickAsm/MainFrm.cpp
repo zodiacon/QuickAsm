@@ -49,6 +49,7 @@ BOOL CMainFrame::OnIdle() {
 	UIEnable(ID_EDIT_FINDPREV, !m_SearchText.IsEmpty());
 	UIEnable(ID_ASM_ENABLEBP, haveCode);
 	UIEnable(ID_ASM_DELETEALLBP, haveCode);
+	UIEnable(ID_ASM_BPCONDITION, haveCode);
 	// the code's setup stays as it is while it runs
 	for (UINT id = ID_MODE_16BIT; id <= ID_MODE_64BIT; id++)
 		UIEnable(id, !busy);

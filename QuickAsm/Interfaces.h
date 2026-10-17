@@ -8,6 +8,9 @@ struct BreakpointInfo {
 	int Line;			// in the disassembly (0 based)
 	bool Enabled;
 	std::string Instruction;
+	std::string Condition;	// empty: none
+	uint32_t HitTarget;		// it breaks from this hit on (0: every hit)
+	uint32_t Hits;			// (the condition was true) since the run started
 };
 
 // the breakpoints, as the main frame keeps them (for the breakpoints view)
@@ -20,4 +23,6 @@ struct IBreakpointsHost {
 	virtual void DeleteAllBreakpoints() = 0;
 	// shows its line in the disassembly
 	virtual void GoToBreakpoint(uint64_t address) = 0;
+	// asks for its condition and hit count
+	virtual void EditBreakpoint(uint64_t address) = 0;
 };

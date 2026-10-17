@@ -1,6 +1,7 @@
 #pragma once
 
 #include "resource.h"
+#include "InPlaceEdit.h"
 #include <VirtualListView.h>
 #include <unordered_set>
 
@@ -38,6 +39,7 @@ public:
 		MESSAGE_HANDLER(WM_SETFOCUS, OnSetFocus)
 		NOTIFY_CODE_HANDLER(LVN_KEYDOWN, OnListKeyDown)
 		NOTIFY_HANDLER(IDC_REGISTERS, NM_CUSTOMDRAW, OnListCustomDraw)
+		NOTIFY_HANDLER(IDC_REGISTERS, LVN_BEGINSCROLL, OnListBeginScroll)
 		COMMAND_RANGE_HANDLER(ID_REGS_8BIT, ID_REGS_64BIT, OnFilter)
 		COMMAND_ID_HANDLER(ID_REGS_EDIT, OnEdit)
 		CHAIN_MSG_MAP(CVirtualListView<CRegistersView>)
@@ -47,7 +49,10 @@ private:
 	RegisterInfo const& GetRegister(int row) const;
 	CString GetValueText(RegisterInfo const& ri) const;
 	CString GetDetailsText(RegisterInfo const& ri) const;
+	// in place, in the value's cell
 	bool EditValue(int row);
+	// a value typed for a register: decimal (may be negative), hex (0x1F or 1Fh); false if it isn't one or doesn't fit
+	static bool ParseValue(CString text, int bits, uint64_t& value);
 	// the values of the registers of the emulator's mode, by index into AllRegisters
 	std::unordered_map<int, CString> ReadValues() const;
 
@@ -56,12 +61,14 @@ private:
 	LRESULT OnSetFocus(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnListKeyDown(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
 	LRESULT OnListCustomDraw(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
+	LRESULT OnListBeginScroll(int /*idCtrl*/, LPNMHDR /*pnmh*/, BOOL& /*bHandled*/);
 	LRESULT OnFilter(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnEdit(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
 	UnicornEngine& m_Emulator;
 	CToolBarCtrl m_ToolBar;
 	CListViewCtrl m_List;
+	CInPlaceEdit m_Edit;
 	std::vector<int> m_Items;	// indices into AllRegisters
 	// the register sizes shown: bit 0 for 8 bit, 1 for 16, 2 for 32, 3 for 64 (tested against RegisterInfo::Size >> 3)
 	DWORD m_Filter{ 1 << 2 };

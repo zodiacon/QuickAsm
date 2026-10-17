@@ -4,7 +4,8 @@
 #include "Interfaces.h"
 #include <VirtualListView.h>
 
-// the breakpoints: enabled or not (the check box), deleted, or shown in the disassembly (double click)
+// the breakpoints: enabled or not (the check box), deleted, given a condition (double click on it),
+// or shown in the disassembly (double click elsewhere)
 class CBreakpointsView :
 	public CWindowImpl<CBreakpointsView>,
 	public CVirtualListView<CBreakpointsView> {
@@ -28,6 +29,7 @@ public:
 		NOTIFY_CODE_HANDLER(LVN_KEYDOWN, OnListKeyDown)
 		NOTIFY_CODE_HANDLER(LVN_ITEMCHANGED, OnItemChanged)
 		COMMAND_ID_HANDLER(ID_BREAKPOINTS_DELETE, OnDelete)
+		COMMAND_ID_HANDLER(ID_BREAKPOINTS_CONDITION, OnCondition)
 		COMMAND_ID_HANDLER(ID_BREAKPOINTS_DELETEALL, OnDeleteAll)
 		COMMAND_ID_HANDLER(ID_BREAKPOINTS_ENABLEALL, OnEnableAll)
 		COMMAND_ID_HANDLER(ID_BREAKPOINTS_DISABLEALL, OnEnableAll)
@@ -44,6 +46,7 @@ private:
 	LRESULT OnListKeyDown(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
 	LRESULT OnItemChanged(int /*idCtrl*/, LPNMHDR /*pnmh*/, BOOL& bHandled);
 	LRESULT OnDelete(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnCondition(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnDeleteAll(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnEnableAll(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 

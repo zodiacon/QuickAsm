@@ -37,6 +37,45 @@ void CMemoryView::Refresh() {
 void CMemoryView::Reset() {
 	// (the modified bytes, the undo history and the selection go too)
 	m_Hex.SetBufferManager(&m_Buffer);
+	m_Changes.clear();
+	HighlightChanges();
+	TakeSnapshot();
+}
+
+void CMemoryView::TakeSnapshot() {
+	m_Snapshot = m_Buffer.GetMemory();
+}
+
+void CMemoryView::MarkChanges() {
+	auto& memory = m_Buffer.GetMemory();
+	m_Changes.clear();
+	if (m_Snapshot.size() == memory.size()) {
+		// ranges of changed bytes (close ones joined, not too many: each byte drawn looks them up)
+		const int64_t maxGap = 4;
+		const size_t maxRanges = 1024;
+		for (int64_t i = 0; i < (int64_t)memory.size() && m_Changes.size() < maxRanges; i++) {
+			if (memory[i] == m_Snapshot[i])
+				continue;
+			if (!m_Changes.empty() && i - (m_Changes.back().first + m_Changes.back().second) <= maxGap)
+				m_Changes.back().second = i - m_Changes.back().first + 1;
+			else
+				m_Changes.push_back({ i, 1 });
+		}
+	}
+	TakeSnapshot();
+	HighlightChanges();
+}
+
+void CMemoryView::HighlightChanges() {
+	auto dark = WTLHelper::IsDarkMode();
+	// (each change of the highlights repaints the control)
+	m_Hex.SetRedraw(FALSE);
+	m_Hex.ClearHighlights();
+	for (auto& [offset, length] : m_Changes)
+		m_Hex.AddHighlight(offset, length, dark ? RGB(255, 255, 255) : RGB(0, 0, 0), dark ? RGB(110, 70, 0) : RGB(255, 225, 140));
+	m_Hex.SetRedraw(TRUE);
+	// (the bytes, which may have changed, also if no highlight did)
+	m_Hex.Refresh();
 }
 
 void CMemoryView::GotoAddress(uint64_t address) {
@@ -66,7 +105,7 @@ void CMemoryView::ApplyTheme() {
 	colors.Modified = dark ? RGB(255, 96, 96) : RGB(255, 0, 0);
 	colors.SelectionText = dark ? RGB(255, 255, 255) : ::GetSysColor(COLOR_HIGHLIGHTTEXT);
 	colors.SelectionBackground = dark ? RGB(38, 79, 120) : ::GetSysColor(COLOR_HIGHLIGHT);
-	m_Hex.Invalidate();
+	HighlightChanges();
 }
 
 LRESULT CMemoryView::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {

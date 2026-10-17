@@ -2,15 +2,17 @@
 #include "RegistersView.h"
 #include "RegisterInfo.h"
 #include "Helpers.h"
-#include "EditValueDlg.h"
 #include <ToolbarHelper.h>
 #include <SortHelper.h>
 #include <WTLHelper.h>
+#include <charconv>
 
 CRegistersView::CRegistersView(UnicornEngine& emulator) : m_Emulator(emulator) {
 }
 
 void CRegistersView::Refresh() {
+	// (the rows change)
+	m_Edit.Cancel();
 	m_Items.clear();
 	if (m_Emulator.IsOpen()) {
 		auto mode = (DWORD)m_Emulator.GetMode();
@@ -30,6 +32,8 @@ void CRegistersView::UpdateValues() {
 }
 
 void CRegistersView::SetLive(bool live) {
+	if (!live)
+		m_Edit.Cancel();
 	m_Live = live;
 	UpdateValues();
 }
@@ -147,17 +151,53 @@ bool CRegistersView::EditValue(int row) {
 		return false;
 	}
 
-	CString title(L"Value for register ");
-	title += ri.Name.c_str();
-	CEditValueDlg dlg(title, GetValueText(ri));
-	if (dlg.DoModal(m_hWnd) != IDOK || dlg.GetValue().IsEmpty())
+	m_List.EnsureVisible(row, FALSE);
+	m_List.SelectItem(row);
+	CRect rc;
+	m_List.GetSubItemRect(row, 2, LVIR_LABEL, &rc);
+	auto id = ri.Id;
+	auto bits = ri.Size;
+	return m_Edit.Start(m_List, rc, GetValueText(ri), ES_RIGHT, [this, id, bits](CString const& text) {
+		uint64_t value;
+		if (!ParseValue(text, bits, value))
+			return false;
+		m_Emulator.WriteReg(id, value);
+		// (an edit isn't a change made by the code: the next stop compares with it)
+		m_Values = ReadValues();
+		// (the registers that overlap it change too)
+		UpdateValues();
+		return true;
+		});
+}
+
+bool CRegistersView::ParseValue(CString text, int bits, uint64_t& value) {
+	text.Trim();
+	std::string s(CStringA(text).MakeLower().GetString());
+	bool negative = !s.empty() && s[0] == '-';
+	std::string_view digits(s);
+	if (negative)
+		digits.remove_prefix(1);
+	int base = 10;
+	if (digits.starts_with("0x"))
+		base = 16, digits.remove_prefix(2);
+	else if (digits.ends_with('h'))
+		base = 16, digits.remove_suffix(1);
+	auto [end, ec] = std::from_chars(digits.data(), digits.data() + digits.size(), value, base);
+	if (digits.empty() || ec != std::errc() || end != digits.data() + digits.size())
 		return false;
 
-	m_Emulator.WriteReg(ri.Id, (uint64_t)::wcstoull(dlg.GetValue(), nullptr, 0));
-	// (an edit isn't a change made by the code: the next stop compares with it)
-	m_Values = ReadValues();
-	// (the registers that overlap it change too)
-	UpdateValues();
+	if (negative) {
+		// (down to the smallest signed value of the size)
+		if (value > (1ull << (bits - 1)))
+			return false;
+		value = 0 - value;
+	}
+	if (bits < 64) {
+		auto mask = (1ull << bits) - 1;
+		if (!negative && value > mask)
+			return false;
+		value &= mask;
+	}
 	return true;
 }
 
@@ -203,7 +243,7 @@ LRESULT CRegistersView::OnSetFocus(UINT, WPARAM, LPARAM, BOOL&) {
 
 LRESULT CRegistersView::OnListKeyDown(int, LPNMHDR pnmh, BOOL&) {
 	auto kd = (NMLVKEYDOWN*)pnmh;
-	if (kd->wVKey == VK_RETURN && m_List.GetSelectedIndex() >= 0)
+	if ((kd->wVKey == VK_RETURN || kd->wVKey == VK_F2) && m_List.GetSelectedIndex() >= 0)
 		EditValue(m_List.GetSelectedIndex());
 	return 0;
 }
@@ -228,6 +268,12 @@ LRESULT CRegistersView::OnListCustomDraw(int, LPNMHDR pnmh, BOOL&) {
 		}
 	}
 	return CDRF_DODEFAULT;
+}
+
+LRESULT CRegistersView::OnListBeginScroll(int, LPNMHDR, BOOL&) {
+	// (the edit box would stay where the cell was)
+	m_Edit.Cancel();
+	return 0;
 }
 
 LRESULT CRegistersView::OnFilter(WORD, WORD wID, HWND, BOOL&) {

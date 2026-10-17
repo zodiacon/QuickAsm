@@ -57,7 +57,13 @@
     <ClInclude Include="BreakpointsView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="EditValueDlg.h">
+    <ClInclude Include="BreakpointDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Expression.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="InPlaceEdit.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MemoryView.h">
@@ -111,6 +117,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="StackView.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Expression.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="AboutDlg.cpp">
