@@ -9,6 +9,7 @@
 #include "MemoryView.h"
 #include "BreakpointsView.h"
 #include "RecentFilesManager.h"
+#include "StackView.h"
 #include <CustomSplitterWindow.h>
 #include <NativeCustomTabView.h>
 #include <mutex>
@@ -50,6 +51,12 @@ public:
 		NOTIFY_HANDLER(IDC_ASM_SOURCE, SCN_SAVEPOINTREACHED, OnSavePointChanged)
 		NOTIFY_HANDLER(IDC_ASM_SOURCE, SCN_SAVEPOINTLEFT, OnSavePointChanged)
 		NOTIFY_HANDLER(IDC_DISASSEMBLY, SCN_MARGINCLICK, OnDisassemblyMarginClick)
+		NOTIFY_HANDLER(IDC_ASM_SOURCE, SCN_MARGINCLICK, OnSourceMarginClick)
+		MESSAGE_HANDLER(CFindReplaceDialog::GetFindReplaceMsg(), OnFindReplace)
+		COMMAND_ID_HANDLER(ID_EDIT_FIND, OnEditFind)
+		COMMAND_ID_HANDLER(ID_EDIT_REPLACE, OnEditFind)
+		COMMAND_ID_HANDLER(ID_EDIT_FINDNEXT, OnEditFindNext)
+		COMMAND_ID_HANDLER(ID_EDIT_FINDPREV, OnEditFindNext)
 		NOTIFY_HANDLER(IDC_DISASSEMBLY, SCN_DOUBLECLICK, OnDisassemblyDoubleClick)
 		MESSAGE_HANDLER(WM_EMULATOR_PAUSED, OnEmulatorPaused)
 		MESSAGE_HANDLER(WM_EMULATOR_DONE, OnEmulatorDone)
@@ -148,6 +155,10 @@ private:
 	bool IsEmulatorBusy() const;
 
 	LRESULT OnDisassemblyMarginClick(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
+	LRESULT OnSourceMarginClick(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
+	LRESULT OnFindReplace(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM lParam, BOOL& /*bHandled*/);
+	LRESULT OnEditFind(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnEditFindNext(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnDisassemblyDoubleClick(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
 	LRESULT OnEmulatorPaused(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM lParam, BOOL& /*bHandled*/);
 	LRESULT OnEmulatorDone(UINT /*uMsg*/, WPARAM wParam, LPARAM /*lParam*/, BOOL& /*bHandled*/);
@@ -162,6 +173,13 @@ private:
 	LRESULT OnEnableBreakpoint(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnDeleteAllBreakpoints(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	void ToggleBreakpoint(int line);
+	// the disassembly line of the code of a source line: -1 if none (or the source changed since it was assembled)
+	int DisassemblyLineFromSourceLine(int sourceLine);
+	// the disassembly line a command is about: at the caret, in the source (its code) if it has the focus
+	int GetTargetLine();
+	void UpdateStackView();
+	void OpenFindDialog(bool replace);
+	void FindNext(bool down);
 	// the disassembly's markers and the breakpoints view, after the breakpoints changed
 	void BreakpointsChanged();
 	int GetDisassemblyCaretLine() const;
@@ -198,6 +216,13 @@ private:
 	std::vector<uint8_t> m_Memory;
 	CMemoryView m_MemoryView{ m_Memory };
 	CBreakpointsView m_BreakpointsView{ *this };
+	CStackView m_StackView;
+	// find and replace (the dialog deletes itself when closed)
+	CFindReplaceDialog* m_pFindDlg{ nullptr };
+	bool m_FindReplace{ false };
+	CAsmEditor* m_FindTarget{ nullptr };
+	CString m_SearchText, m_ReplaceText;
+	bool m_MatchCase{ false }, m_WholeWord{ false };
 	CComboBox m_AssemblerCombo;
 	CEdit m_AddressEdit;
 	CStatic m_AssemblerLabel, m_AddressLabel;

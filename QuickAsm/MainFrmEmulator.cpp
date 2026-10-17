@@ -43,6 +43,7 @@ void CMainFrame::InitEmulator(uint8_t const* data, size_t size, bool keepBreakpo
 	m_RegistersView.Refresh();
 	m_RegistersView.ResetChanges();
 	m_MemoryView.Reset();
+	UpdateStackView();
 	if (!m_Instructions.empty())
 		m_MemoryView.GotoAddress(m_Instructions[0].Address);
 }
@@ -84,6 +85,7 @@ void CMainFrame::Run(bool stepInto, uint64_t stopAt, bool stepOut) {
 		ShowCurrentLine(-1);
 		m_EmulatorState = EmulatorState::Running;
 		m_RegistersView.SetLive(false);
+		UpdateStackView();
 		m_StatusBar.SetText(1, L"Running");
 		::SetEvent(m_ContinueEvent.get());
 		return;
@@ -106,6 +108,7 @@ void CMainFrame::Run(bool stepInto, uint64_t stopAt, bool stepOut) {
 	m_CodeRan = true;
 	m_EmulatorState = EmulatorState::Running;
 	m_RegistersView.SetLive(false);
+	UpdateStackView();
 	m_StatusBar.SetText(1, L"Running");
 
 	if (!m_EmulatorWork) {
@@ -164,6 +167,47 @@ void CMainFrame::StopEmulator() {
 	m_StatusBar.SetText(1, L"Idle");
 }
 
+void CMainFrame::UpdateStackView() {
+	// (nothing while the code runs: the stack pointer can't be read then)
+	if (!m_Emulator.IsOpen() || m_EmulatorState == EmulatorState::Running) {
+		m_StackView.SetEntries({}, 4);
+		return;
+	}
+
+	int size = 2 << (int)m_AsmMode;
+	auto sp = ReadStackPointer();
+	uint64_t bp;
+	PCWSTR spName, bpName;
+	switch (m_AsmMode) {
+		case AsmMode::Bits16: bp = m_Emulator.ReadReg<uint16_t>(x86Register::BP); spName = L"SP"; bpName = L"BP"; break;
+		case AsmMode::Bits32: bp = m_Emulator.ReadReg<uint32_t>(x86Register::EBP); spName = L"ESP"; bpName = L"EBP"; break;
+		default: bp = m_Emulator.ReadReg<uint64_t>(x86Register::RBP); spName = L"RSP"; bpName = L"RBP"; break;
+	}
+
+	std::vector<StackEntry> entries;
+	for (auto address = sp; address + size <= m_Memory.size() && entries.size() < 256; address += size) {
+		StackEntry entry{ address, 0 };
+		::memcpy(&entry.Value, m_Memory.data() + address, size);
+		CString notes;
+		if (address == sp)
+			notes = spName;
+		if (address == bp)
+			notes += CString(notes.IsEmpty() ? L"" : L", ") + bpName;
+		// an address in the code: after a call, where it returns to
+		if (auto line = LineFromAddress(entry.Value); line >= 0) {
+			CString what;
+			if (line > 0 && m_Instructions[line - 1].Id == X86_INS_CALL)
+				what.Format(L"Return address (line %d)", line + 1);
+			else
+				what.Format(L"Code (line %d)", line + 1);
+			notes += CString(notes.IsEmpty() ? L"" : L", ") + what;
+		}
+		entry.Notes = notes;
+		entries.push_back(std::move(entry));
+	}
+	m_StackView.SetEntries(std::move(entries), size);
+}
+
 void CMainFrame::ShowCurrentLine(int line) {
 	m_Disassembly.SetCurrentLine(line);
 	m_AsmSource.SetCurrentLine(SourceLineFromDisassemblyLine(line));
@@ -174,6 +218,7 @@ void CMainFrame::ShowEmulatorState(int line) {
 	ShowCurrentLine(line);
 	m_RegistersView.MarkChanges();
 	m_RegistersView.SetLive(true);
+	UpdateStackView();
 	m_MemoryView.Refresh();
 }
 
@@ -262,7 +307,7 @@ LRESULT CMainFrame::OnRunToCursor(WORD, WORD, HWND, BOOL&) {
 	if (m_EmulatorState == EmulatorState::Running)
 		return 0;
 
-	auto line = GetDisassemblyCaretLine();
+	auto line = GetTargetLine();
 	if (line < 0 || line >= (int)m_Instructions.size()) {
 		::MessageBeep(MB_ICONWARNING);
 		return 0;
@@ -308,13 +353,41 @@ void CMainFrame::ToggleBreakpoint(int line) {
 
 void CMainFrame::BreakpointsChanged() {
 	m_Disassembly.DeleteBreakpointMarkers();
+	m_AsmSource.DeleteBreakpointMarkers();
+	// (in the source too, while its lines are the code's)
+	bool source = !m_AddressToSourceLine.empty() && m_AsmSource.GetAllText() == m_AssembledSource;
 	{
 		std::lock_guard lock(m_BreakpointsLock);
-		for (auto& [address, enabled] : m_Breakpoints)
+		for (auto& [address, enabled] : m_Breakpoints) {
 			if (auto line = LineFromAddress(address); line >= 0)
 				m_Disassembly.SetBreakpointMarker(line, true, enabled);
+			if (auto it = m_AddressToSourceLine.find(address); source && it != m_AddressToSourceLine.end())
+				m_AsmSource.SetBreakpointMarker(it->second, true, enabled);
+		}
 	}
 	m_BreakpointsView.Refresh();
+}
+
+int CMainFrame::DisassemblyLineFromSourceLine(int sourceLine) {
+	if (m_AddressToSourceLine.empty() || m_AsmSource.GetAllText() != m_AssembledSource)
+		return -1;
+	// the first instruction of the line (a macro's line has several)
+	int first = -1;
+	for (auto& [address, line] : m_AddressToSourceLine)
+		if (line == sourceLine)
+			if (auto dline = LineFromAddress(address); dline >= 0 && (first < 0 || dline < first))
+				first = dline;
+	return first;
+}
+
+int CMainFrame::GetTargetLine() {
+	if (::GetFocus() != m_AsmSource)
+		return GetDisassemblyCaretLine();
+
+	auto line = DisassemblyLineFromSourceLine((int)m_AsmSource.LineFromPosition(m_AsmSource.GetCurrentPos()));
+	if (line < 0)
+		m_StatusBar.SetText(0, m_AsmSource.GetAllText() == m_AssembledSource ? L"No code at this line" : L"The source changed: assemble it again");
+	return line;
 }
 
 std::vector<BreakpointInfo> CMainFrame::GetBreakpoints() const {
@@ -374,12 +447,12 @@ void CMainFrame::GoToBreakpoint(uint64_t address) {
 }
 
 LRESULT CMainFrame::OnToggleBreakpoint(WORD, WORD, HWND, BOOL&) {
-	ToggleBreakpoint(GetDisassemblyCaretLine());
+	ToggleBreakpoint(GetTargetLine());
 	return 0;
 }
 
 LRESULT CMainFrame::OnEnableBreakpoint(WORD, WORD, HWND, BOOL&) {
-	auto line = GetDisassemblyCaretLine();
+	auto line = GetTargetLine();
 	if (line < 0 || line >= (int)m_Instructions.size())
 		return 0;
 
@@ -411,6 +484,20 @@ LRESULT CMainFrame::OnDisassemblyDoubleClick(int, LPNMHDR pnmh, BOOL&) {
 		m_AsmSource.GotoLine(line);
 		m_AsmSource.SetFocus();
 	}
+	return 0;
+}
+
+LRESULT CMainFrame::OnSourceMarginClick(int, LPNMHDR pnmh, BOOL&) {
+	auto scn = (SCNotification*)pnmh;
+	if (scn->margin != 1)
+		return 0;
+	auto line = DisassemblyLineFromSourceLine((int)m_AsmSource.LineFromPosition(scn->position));
+	if (line < 0) {
+		::MessageBeep(MB_ICONWARNING);
+		m_StatusBar.SetText(0, m_AsmSource.GetAllText() == m_AssembledSource ? L"No code at this line" : L"The source changed: assemble it again");
+		return 0;
+	}
+	ToggleBreakpoint(line);
 	return 0;
 }
 

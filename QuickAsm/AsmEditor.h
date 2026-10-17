@@ -21,6 +21,19 @@ public:
 	void DeleteBreakpointMarkers();
 	// the lines with errors are underlined (none: the marks go)
 	void MarkErrorLines(std::vector<int> const& lines);
+
+	// selects the next (or previous) occurrence, wrapping around; false if there's none
+	bool Find(std::string const& text, bool down, bool matchCase, bool wholeWord);
+	// replaces the selection if it's an occurrence, then finds the next; false if there's no next
+	bool Replace(std::string const& text, std::string const& replacement, bool matchCase, bool wholeWord);
+	// (one undo step) the number replaced
+	int ReplaceAll(std::string const& text, std::string const& replacement, bool matchCase, bool wholeWord);
+
+private:
+	void SetSearchFlags(bool matchCase, bool wholeWord);
+	Sci_Position SearchInRange(std::string const& text, Sci_Position from, Sci_Position to);
+
+public:
 	// the line where execution stopped (-1: none), made visible
 	void SetCurrentLine(int line);
 

@@ -197,3 +197,63 @@ void CAsmEditor::SetCurrentLine(int line) {
 	auto pos = PositionFromLine(line);
 	Execute(SCI_SCROLLRANGE, pos, pos);
 }
+
+void CAsmEditor::SetSearchFlags(bool matchCase, bool wholeWord) {
+	Execute(SCI_SETSEARCHFLAGS, (matchCase ? SCFIND_MATCHCASE : 0) | (wholeWord ? SCFIND_WHOLEWORD : 0));
+}
+
+Sci_Position CAsmEditor::SearchInRange(std::string const& text, Sci_Position from, Sci_Position to) {
+	// (from > to: backwards)
+	Execute(SCI_SETTARGETRANGE, from, to);
+	return (Sci_Position)Execute(SCI_SEARCHINTARGET, text.size(), reinterpret_cast<LPARAM>(text.c_str()));
+}
+
+bool CAsmEditor::Find(std::string const& text, bool down, bool matchCase, bool wholeWord) {
+	if (text.empty())
+		return false;
+
+	SetSearchFlags(matchCase, wholeWord);
+	auto start = (Sci_Position)Execute(SCI_GETSELECTIONSTART);
+	auto end = (Sci_Position)Execute(SCI_GETSELECTIONEND);
+	auto length = Length();
+	auto pos = down ? SearchInRange(text, end, length) : SearchInRange(text, start, 0);
+	if (pos < 0)	// from the other end
+		pos = down ? SearchInRange(text, 0, end) : SearchInRange(text, length, start);
+	if (pos < 0)
+		return false;
+
+	Execute(SCI_SETSEL, pos, Execute(SCI_GETTARGETEND));
+	return true;
+}
+
+bool CAsmEditor::Replace(std::string const& text, std::string const& replacement, bool matchCase, bool wholeWord) {
+	if (text.empty() || IsReadOnly())
+		return false;
+
+	SetSearchFlags(matchCase, wholeWord);
+	auto start = (Sci_Position)Execute(SCI_GETSELECTIONSTART);
+	auto end = (Sci_Position)Execute(SCI_GETSELECTIONEND);
+	// the selection is an occurrence (as Find selected it)
+	if (start != end && SearchInRange(text, start, end) == start && (Sci_Position)Execute(SCI_GETTARGETEND) == end) {
+		Execute(SCI_REPLACETARGET, replacement.size(), reinterpret_cast<LPARAM>(replacement.c_str()));
+		Execute(SCI_SETSEL, start, start + (Sci_Position)replacement.size());
+	}
+	return Find(text, true, matchCase, wholeWord);
+}
+
+int CAsmEditor::ReplaceAll(std::string const& text, std::string const& replacement, bool matchCase, bool wholeWord) {
+	if (text.empty() || IsReadOnly())
+		return 0;
+
+	SetSearchFlags(matchCase, wholeWord);
+	int count = 0;
+	Execute(SCI_BEGINUNDOACTION);
+	for (Sci_Position pos = 0; ; count++) {
+		if (SearchInRange(text, pos, Length()) < 0)
+			break;
+		Execute(SCI_REPLACETARGET, replacement.size(), reinterpret_cast<LPARAM>(replacement.c_str()));
+		pos = (Sci_Position)Execute(SCI_GETTARGETEND);
+	}
+	Execute(SCI_ENDUNDOACTION);
+	return count;
+}

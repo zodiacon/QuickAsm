@@ -19,6 +19,8 @@ CMainFrame::CMainFrame() {
 CMainFrame::~CMainFrame() = default;
 
 BOOL CMainFrame::PreTranslateMessage(MSG* pMsg) {
+	if (m_pFindDlg && m_pFindDlg->IsDialogMessage(pMsg))
+		return TRUE;
 	if (CFrameWindowImpl<CMainFrame>::PreTranslateMessage(pMsg))
 		return TRUE;
 	if (m_MemoryView.PreTranslateMessage(pMsg))
@@ -43,6 +45,8 @@ BOOL CMainFrame::OnIdle() {
 	UIEnable(ID_ASM_STEPOUT, m_EmulatorState == EmulatorState::Paused);
 	UIEnable(ID_ASM_RUNTOCURSOR, haveCode && !running);
 	UIEnable(ID_ASM_TOGGLEBP, haveCode);
+	UIEnable(ID_EDIT_FINDNEXT, !m_SearchText.IsEmpty());
+	UIEnable(ID_EDIT_FINDPREV, !m_SearchText.IsEmpty());
 	UIEnable(ID_ASM_ENABLEBP, haveCode);
 	UIEnable(ID_ASM_DELETEALLBP, haveCode);
 	// the code's setup stays as it is while it runs
@@ -265,6 +269,7 @@ void CMainFrame::Assemble() {
 	Disassemble(m_AsmBytes.data(), m_AsmBytes.size());
 	m_AssembledSource = m_AsmSource.GetAllText();
 	MapSourceLines(results.SourceLines);
+	BreakpointsChanged();
 }
 
 void CMainFrame::MapSourceLines(std::vector<std::pair<uint32_t, int>> const& sourceLines) {
@@ -438,6 +443,92 @@ bool CMainFrame::OpenFile(PCWSTR file) {
 	return true;
 }
 
+void CMainFrame::OpenFindDialog(bool replace) {
+	// what is searched: the editor with the focus (the source to replace in)
+	auto editor = GetFocusedEditor();
+	m_FindTarget = replace || !editor ? &m_AsmSource : editor;
+
+	// the selection (on one line) to look for
+	auto selection = m_FindTarget->GetSelText();
+	if (!selection.empty() && selection.find_first_of("\r\n") == std::string::npos)
+		m_SearchText = CA2W(selection.c_str(), CP_UTF8);
+
+	if (m_pFindDlg && m_FindReplace != replace) {
+		m_pFindDlg->DestroyWindow();
+		m_pFindDlg = nullptr;
+	}
+	if (!m_pFindDlg) {
+		m_pFindDlg = new CFindReplaceDialog;
+		m_FindReplace = replace;
+		DWORD flags = FR_DOWN | (m_MatchCase ? FR_MATCHCASE : 0) | (m_WholeWord ? FR_WHOLEWORD : 0);
+		m_pFindDlg->Create(!replace, m_SearchText, m_ReplaceText, flags, m_hWnd);
+		m_pFindDlg->ShowWindow(SW_SHOW);
+	}
+	else {
+		m_pFindDlg->SetDlgItemText(edt1, m_SearchText);
+		m_pFindDlg->SetFocus();
+	}
+}
+
+void CMainFrame::FindNext(bool down) {
+	if (m_SearchText.IsEmpty()) {
+		OpenFindDialog(false);
+		return;
+	}
+	if (auto editor = GetFocusedEditor())
+		m_FindTarget = editor;
+	if (!m_FindTarget)
+		m_FindTarget = &m_AsmSource;
+
+	if (!m_FindTarget->Find((PCSTR)CW2A(m_SearchText, CP_UTF8), down, m_MatchCase, m_WholeWord)) {
+		::MessageBeep(MB_ICONWARNING);
+		m_StatusBar.SetText(0, L"Not found: " + m_SearchText);
+	}
+}
+
+LRESULT CMainFrame::OnEditFind(WORD, WORD wID, HWND, BOOL&) {
+	OpenFindDialog(wID == ID_EDIT_REPLACE);
+	return 0;
+}
+
+LRESULT CMainFrame::OnEditFindNext(WORD, WORD wID, HWND, BOOL&) {
+	FindNext(wID == ID_EDIT_FINDNEXT);
+	return 0;
+}
+
+LRESULT CMainFrame::OnFindReplace(UINT, WPARAM, LPARAM lParam, BOOL&) {
+	auto dlg = CFindReplaceDialog::GetNotifier(lParam);
+	if (dlg->IsTerminating()) {
+		m_pFindDlg = nullptr;
+		return 0;
+	}
+
+	m_SearchText = dlg->GetFindString();
+	m_ReplaceText = dlg->GetReplaceString();
+	m_MatchCase = dlg->MatchCase();
+	m_WholeWord = dlg->MatchWholeWord();
+	if (!m_FindTarget)
+		m_FindTarget = &m_AsmSource;
+	CW2A text(m_SearchText, CP_UTF8), replacement(m_ReplaceText, CP_UTF8);
+	bool found = true;
+	if (dlg->FindNext())
+		found = m_FindTarget->Find((PCSTR)text, dlg->SearchDown() != FALSE, m_MatchCase, m_WholeWord);
+	else if (dlg->ReplaceCurrent())
+		found = m_FindTarget->Replace((PCSTR)text, (PCSTR)replacement, m_MatchCase, m_WholeWord);
+	else if (dlg->ReplaceAll()) {
+		auto count = m_FindTarget->ReplaceAll((PCSTR)text, (PCSTR)replacement, m_MatchCase, m_WholeWord);
+		CString status;
+		status.Format(L"Replaced %d", count);
+		m_StatusBar.SetText(0, status);
+		found = count > 0;
+	}
+	if (!found) {
+		::MessageBeep(MB_ICONWARNING);
+		m_StatusBar.SetText(0, L"Not found: " + m_SearchText);
+	}
+	return 0;
+}
+
 LRESULT CMainFrame::OnRecentFile(WORD, WORD wID, HWND, BOOL&) {
 	auto index = wID - ATL_IDS_MRU_FILE;
 	if (index >= m_RecentFiles.Files().size())
@@ -526,17 +617,19 @@ void CMainFrame::CreateBottomPane() {
 	m_Tabs.Create(m_RightSplitter, rcDefault, nullptr, WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS);
 	CImageList images;
 	images.Create(16, 16, ILC_COLOR32, 3, 0);
-	for (auto id : { IDI_REGISTERS, IDI_MEMORY, IDI_BREAKPOINT })
+	for (auto id : { IDI_REGISTERS, IDI_MEMORY, IDI_BREAKPOINT, IDI_STACK })
 		images.AddIcon(AtlLoadIconImage(id, 0, 16, 16));
 	m_Tabs.SetImageList(images);	// (destroyed by the tab view)
 
 	m_RegistersView.Create(m_Tabs, rcDefault, nullptr, WS_CHILD | WS_CLIPCHILDREN);
 	m_MemoryView.Create(m_Tabs, rcDefault, nullptr, WS_CHILD | WS_CLIPCHILDREN);
 	m_BreakpointsView.Create(m_Tabs, rcDefault, nullptr, WS_CHILD | WS_CLIPCHILDREN);
+	m_StackView.Create(m_Tabs, rcDefault, nullptr, WS_CHILD | WS_CLIPCHILDREN);
 
 	m_Tabs.AddPage(m_RegistersView, L"Registers", 0);
 	m_Tabs.AddPage(m_MemoryView, L"Memory", 1);
 	m_Tabs.AddPage(m_BreakpointsView, L"Breakpoints", 2);
+	m_Tabs.AddPage(m_StackView, L"Stack", 3);
 	m_Tabs.SetActivePage(0);
 }
 
@@ -578,8 +671,6 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	m_RecentFiles.Set(settings.RecentFiles());
 	UpdateRecentFilesMenu();
 
-	// (never implemented)
-	UIEnable(ID_EDIT_FIND, false);
 
 	if (!settings.LoadWindowPosition(m_hWnd, L"MainWindowPlacement")) {
 		SetWindowPos(nullptr, 0, 0, 1300, 900, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
