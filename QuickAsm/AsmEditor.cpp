@@ -100,6 +100,7 @@ HWND CAsmEditor::Create(HWND hParent, UINT id, bool readOnly) {
 	SetMarginWidth(0, 40);
 	SetMarginWidth(1, 20);
 	MarkerDefine(BreakpointMarker, Scintilla::MarkerSymbol::Circle);
+	MarkerDefine(CurrentLineMarker, Scintilla::MarkerSymbol::ShortArrow);
 	Execute(SCI_INDICSETSTYLE, CurrentLineIndicator, INDIC_FULLBOX);
 
 	SetLexer(CreateLexer("asm"));
@@ -142,7 +143,10 @@ void CAsmEditor::ApplyTheme() {
 
 	MarkerSetBack(BreakpointMarker, dark ? RGB(220, 40, 40) : RGB(128, 0, 0));
 	MarkerSetFore(BreakpointMarker, dark ? RGB(220, 40, 40) : RGB(128, 0, 0));
+	MarkerSetBack(CurrentLineMarker, dark ? RGB(255, 220, 0) : RGB(255, 200, 0));
+	MarkerSetFore(CurrentLineMarker, dark ? RGB(160, 120, 0) : RGB(128, 96, 0));
 	Execute(SCI_INDICSETFORE, CurrentLineIndicator, dark ? RGB(160, 160, 0) : RGB(255, 255, 0));
+	Execute(SCI_INDICSETALPHA, CurrentLineIndicator, dark ? 80 : 100);
 }
 
 bool CAsmEditor::ToggleBreakpoint(int line) {
@@ -152,4 +156,20 @@ bool CAsmEditor::ToggleBreakpoint(int line) {
 	}
 	MarkerAdd(line, BreakpointMarker);
 	return true;
+}
+
+void CAsmEditor::SetCurrentLine(int line) {
+	Execute(SCI_SETINDICATORCURRENT, CurrentLineIndicator);
+	if (m_CurrentLine >= 0) {
+		MarkerDelete(m_CurrentLine, CurrentLineMarker);
+		Execute(SCI_INDICATORCLEARRANGE, PositionFromLine(m_CurrentLine), GetLineLength(m_CurrentLine));
+	}
+	m_CurrentLine = line;
+	if (line < 0)
+		return;
+
+	MarkerAdd(line, CurrentLineMarker);
+	Execute(SCI_INDICATORFILLRANGE, PositionFromLine(line), GetLineLength(line));
+	auto pos = PositionFromLine(line);
+	Execute(SCI_SCROLLRANGE, pos, pos);
 }

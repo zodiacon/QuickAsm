@@ -30,6 +30,8 @@ extern CAppModule _Module;
 #include <map>
 #include <functional>
 #include <format>
+#include <algorithm>
+#include <atomic>
 
 #include <keystone/keystone.h>
 #include <capstone/capstone.h>

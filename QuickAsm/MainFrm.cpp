@@ -6,6 +6,7 @@
 #include "KeystoneAssembler.h"
 #include "NasmAssembler.h"
 #include <WTLHelper.h>
+#include <ToolbarHelper.h>
 #include <fstream>
 
 CMainFrame::CMainFrame() {
@@ -29,7 +30,24 @@ BOOL CMainFrame::OnIdle() {
 	auto anyText = m_AsmSource.GetTextLength() > 0;
 	UIEnable(ID_FILE_SAVE, m_AsmSource.IsModified() || (anyText && m_FileName.IsEmpty()));
 	UIEnable(ID_FILE_SAVE_AS, anyText);
-	UIEnable(ID_ASM_ASSEMBLE, anyText);
+	auto busy = IsEmulatorBusy();
+	auto running = m_EmulatorState == EmulatorState::Running;
+	auto haveCode = !m_Instructions.empty() && m_Emulator.IsOpen();
+	UIEnable(ID_ASM_ASSEMBLE, anyText && !busy);
+	UIEnable(ID_ASM_RUN, haveCode && !running);
+	UIEnable(ID_ASM_STOP, busy);
+	UIEnable(ID_ASM_RESTART, haveCode);
+	UIEnable(ID_ASM_STEPINTO, haveCode && !running);
+	UIEnable(ID_ASM_STEPOVER, haveCode && !running);
+	UIEnable(ID_ASM_TOGGLEBP, haveCode);
+	UIEnable(ID_ASM_DELETEALLBP, haveCode);
+	// the code's setup stays as it is while it runs
+	for (UINT id = ID_MODE_16BIT; id <= ID_MODE_64BIT; id++)
+		UIEnable(id, !busy);
+	for (UINT id = ID_ASSEMBLER_KEYSTONE; id <= ID_ASSEMBLER_NASM; id++)
+		UIEnable(id, !busy);
+	m_AssemblerCombo.EnableWindow(!busy);
+	m_AddressEdit.EnableWindow(!busy);
 
 	if (auto& hex = m_MemoryView.GetHexControl(); ::GetFocus() == hex) {
 		UIEnable(ID_EDIT_UNDO, hex.CanUndo());
@@ -158,7 +176,28 @@ bool CMainFrame::DoSaveAs() {
 	return SaveSource(dlg.m_szFileName);
 }
 
+bool CMainFrame::ParseAddress() {
+	CString text;
+	m_AddressEdit.GetWindowText(text);
+	text.Trim();
+	PWSTR end = nullptr;
+	auto address = ::wcstoull(text, &end, 0);
+	if (text.IsEmpty() || *end || address >= m_Memory.size()) {
+		CString message;
+		message.Format(L"The address must be a number below 0x%zX (decimal, or hex with 0x).", m_Memory.size());
+		AtlMessageBox(m_hWnd, (PCWSTR)message, IDR_MAINFRAME, MB_ICONWARNING);
+		m_AddressEdit.SetFocus();
+		m_AddressEdit.SetSelAll();
+		return false;
+	}
+	m_Address = address;
+	return true;
+}
+
 void CMainFrame::Assemble() {
+	if (!ParseAddress())
+		return;
+
 	auto assembler = m_Assemblers[m_AssemblerIndex].get();
 	assembler->SetValue("mode", int64_t(1) << (4 + (int)m_AsmMode));
 	assembler->SetValue("address", (int64_t)m_Address);
@@ -179,6 +218,10 @@ void CMainFrame::Assemble() {
 		m_AsmBytes = Helpers::ReadFileContents(results.OutputFile.c_str());
 	else
 		m_AsmBytes = std::move(results.Bytes);
+	if (m_Address + m_AsmBytes.size() > m_Memory.size()) {
+		AtlMessageBox(m_hWnd, L"The code doesn't fit in the emulator's memory at this address.", IDR_MAINFRAME, MB_ICONWARNING);
+		m_AsmBytes.clear();
+	}
 	Disassemble(m_AsmBytes.data(), m_AsmBytes.size());
 }
 
@@ -216,6 +259,12 @@ bool CMainFrame::OpenFile(PCWSTR path) {
 	auto bytes = Helpers::ReadFileContents(path);
 	if (CString(path).Right(4).CompareNoCase(L".asm") != 0) {
 		// a binary file is disassembled; the source (and its file) stays as it is
+		if (!ParseAddress())
+			return false;
+		if (m_Address + bytes.size() > m_Memory.size()) {
+			AtlMessageBox(m_hWnd, L"The file doesn't fit in the emulator's memory at this address.", IDR_MAINFRAME, MB_ICONWARNING);
+			return false;
+		}
 		m_AsmBytes = std::move(bytes);
 		Disassemble(m_AsmBytes.data(), m_AsmBytes.size());
 		return true;
@@ -233,17 +282,69 @@ bool CMainFrame::OpenFile(PCWSTR path) {
 	return true;
 }
 
-void CMainFrame::InitEmulator(uint8_t const* data, size_t size) {
-	m_Emulator.Close();
-	if (!m_Instructions.empty() && m_Emulator.Open(CpuArch::x86, (CpuMode)(1 << (1 + (int)m_AsmMode)))) {
-		std::ranges::fill(m_Memory, uint8_t(0));
-		m_Emulator.MapHostMemory(0, m_Memory.size(), MemProtection::All, m_Memory.data());
-		m_Emulator.WriteMemory(m_Instructions[0].Address, data, size);
-	}
-	m_RegistersView.Refresh();
-	m_MemoryView.Refresh();
-	if (!m_Instructions.empty())
-		m_MemoryView.GotoAddress(m_Instructions[0].Address);
+void CMainFrame::CreateToolBar() {
+	ToolBarButtonInfo const buttons[] = {
+		{ ID_FILE_OPEN, IDI_OPEN },
+		{ ID_FILE_SAVE, IDI_SAVE },
+		{ 0 },
+		{ ID_MODE_16BIT, IDI_16BIT },
+		{ ID_MODE_32BIT, IDI_32BIT },
+		{ ID_MODE_64BIT, IDI_64BIT },
+		{ 0 },
+		{ ID_ASM_ASSEMBLE, IDI_BUILD },
+		{ 0 },
+		{ ID_ASM_RUN, IDI_RUN },
+		{ ID_ASM_STOP, IDI_STOP },
+		{ ID_ASM_RESTART, IDI_RESTART },
+		{ 0 },
+		{ ID_ASM_STEPOVER, IDI_STEPOVER },
+		{ ID_ASM_STEPINTO, IDI_STEPINTO },
+		{ 0 },
+		{ ID_ASM_TOGGLEBP, IDI_BREAKPOINT },
+	};
+	CreateSimpleReBar(ATL_SIMPLE_REBAR_NOBORDER_STYLE);
+	CToolBarCtrl tb(ToolbarHelper::CreateAndInitToolBar(m_hWnd, buttons, _countof(buttons)));
+
+	// the assembler and the address go on the toolbar (over separators as wide as they are), each after a label:
+	// rebar band titles aren't drawn with the dark mode's rebar painting
+	auto font = AtlGetDefaultGuiFont();
+	auto addSpace = [&](int width) {
+		TBBUTTON button{ width, 0, TBSTATE_ENABLED, BTNS_SEP };
+		tb.AddButtons(1, &button);
+		CRect rc;
+		tb.GetItemRect(tb.GetButtonCount() - 1, &rc);
+		return rc;
+		};
+	auto addLabel = [&](CStatic& label, PCWSTR text, int width) {
+		auto rc = addSpace(width);
+		label.Create(tb, rc, text, WS_CHILD | WS_VISIBLE | SS_RIGHT | SS_CENTERIMAGE);
+		label.SetFont(font);
+		};
+	auto center = [](CRect rc, int height) {
+		rc.top += (rc.Height() - height) / 2;
+		rc.bottom = rc.top + height;
+		return rc;
+		};
+
+	addSpace(8);
+	addLabel(m_AssemblerLabel, L"Assembler: ", 70);
+	auto rc = addSpace(100);
+	// (the height given is the list's; the closed box is as high as the font needs, and goes in the middle)
+	CRect rcCombo(rc.left, rc.top, rc.right, rc.top + 200);
+	m_AssemblerCombo.Create(tb, rcCombo, nullptr, WS_CHILD | WS_VISIBLE | WS_VSCROLL | CBS_DROPDOWNLIST, 0, IDC_ASSEMBLER);
+	m_AssemblerCombo.SetFont(font);
+	for (auto& assembler : m_Assemblers)
+		m_AssemblerCombo.AddString(assembler->GetName());
+	m_AssemblerCombo.SetCurSel(m_AssemblerIndex);
+	m_AssemblerCombo.GetWindowRect(&rcCombo);
+	m_AssemblerCombo.SetWindowPos(nullptr, rc.left, center(rc, rcCombo.Height()).top, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+	addLabel(m_AddressLabel, L"Address: ", 60);
+	auto rcEdit = center(addSpace(90), 22);
+	m_AddressEdit.Create(tb, rcEdit, L"0x1000", WS_CHILD | WS_VISIBLE | ES_RIGHT | ES_AUTOHSCROLL, WS_EX_CLIENTEDGE, IDC_ADDRESS);
+	m_AddressEdit.SetFont(font);
+
+	AddSimpleReBarBand(tb, nullptr, FALSE, 0, TRUE);
+	UIAddToolBar(tb);
 }
 
 void CMainFrame::CreateBottomPane() {
@@ -269,6 +370,7 @@ void CMainFrame::CreateBottomPane() {
 LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	auto& settings = AppSettings::Get();
 
+	CreateToolBar();
 	CreateSimpleStatusBar();
 	m_StatusBar.Attach(m_hWndStatusBar);
 	int parts[] = { 200, 500, -1 };
@@ -296,14 +398,8 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	InitMenu(hMenu);
 	UIAddMenu(hMenu);
 
-	// not ported from wxWidgets yet
-	static const UINT notYet[] = {
-		ID_EDIT_FIND,
-		ID_ASM_RUN, ID_ASM_STOP, ID_ASM_RESTART, ID_ASM_STEPOVER, ID_ASM_STEPINTO,
-		ID_ASM_TOGGLEBP, ID_ASM_DELETEALLBP,
-	};
-	for (auto id : notYet)
-		UIEnable(id, false);
+	// (never implemented)
+	UIEnable(ID_EDIT_FIND, false);
 
 	if (!settings.LoadWindowPosition(m_hWnd, L"MainWindowPlacement")) {
 		SetWindowPos(nullptr, 0, 0, 1300, 900, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
@@ -320,6 +416,8 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 LRESULT CMainFrame::OnClose(UINT, WPARAM, LPARAM, BOOL& bHandled) {
 	// not closing if the user canceled
 	bHandled = !SaveChangesIfNeeded();
+	if (!bHandled)
+		StopEmulator();
 	return 0;
 }
 
@@ -445,6 +543,13 @@ LRESULT CMainFrame::OnAssemble(WORD, WORD, HWND, BOOL&) {
 
 LRESULT CMainFrame::OnAssembler(WORD, WORD wID, HWND, BOOL&) {
 	m_AssemblerIndex = wID - ID_ASSEMBLER_KEYSTONE;
+	m_AssemblerCombo.SetCurSel(m_AssemblerIndex);
+	UpdateUI();
+	return 0;
+}
+
+LRESULT CMainFrame::OnAssemblerSelected(WORD, WORD, HWND, BOOL&) {
+	m_AssemblerIndex = m_AssemblerCombo.GetCurSel();
 	UpdateUI();
 	return 0;
 }

@@ -19,6 +19,8 @@ public:
 	void Refresh();
 	// the values (after they may have changed)
 	void UpdateValues();
+	// not live while the emulator runs: the values can't be read then (the emulator isn't thread safe)
+	void SetLive(bool live);
 
 	CString GetColumnText(HWND, int row, int col) const;
 	void DoSort(SortInfo const* si);
@@ -54,4 +56,5 @@ private:
 	std::vector<int> m_Items;	// indices into AllRegisters
 	// the register sizes shown: bit 0 for 8 bit, 1 for 16, 2 for 32, 3 for 64 (tested against RegisterInfo::Size >> 3)
 	DWORD m_Filter{ 1 << 2 };
+	bool m_Live{ true };
 };

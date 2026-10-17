@@ -39,6 +39,8 @@
 #define IDC_DISASSEMBLY                 1002
 #define IDC_VALUE                       1003
 #define IDC_REGISTERS                   1004
+#define IDC_ASSEMBLER                   1005
+#define IDC_ADDRESS                     1006
 
 #define ID_ASM_ASSEMBLE                 32800
 #define ID_ASM_RUN                      32801
@@ -77,7 +79,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        130
 #define _APS_NEXT_COMMAND_VALUE         32840
-#define _APS_NEXT_CONTROL_VALUE         1005
+#define _APS_NEXT_CONTROL_VALUE         1007
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

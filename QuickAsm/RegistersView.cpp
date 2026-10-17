@@ -28,6 +28,11 @@ void CRegistersView::UpdateValues() {
 	m_List.RedrawItems(m_List.GetTopIndex(), m_List.GetTopIndex() + m_List.GetCountPerPage());
 }
 
+void CRegistersView::SetLive(bool live) {
+	m_Live = live;
+	UpdateValues();
+}
+
 RegisterInfo const& CRegistersView::GetRegister(int row) const {
 	return AllRegisters[m_Items[row]];
 }
@@ -38,9 +43,9 @@ CString CRegistersView::GetColumnText(HWND, int row, int col) const {
 	switch (col) {
 		case 0: return CString(ri.Name.c_str());
 		case 1: text.Format(L"%d bit", ri.Size); break;
-		case 2: return GetValueText(ri);
+		case 2: return m_Live ? GetValueText(ri) : CString();
 		case 3: return Helpers::RegisterTypeToString(ri.Category);
-		case 4: return GetDetailsText(ri);
+		case 4: return m_Live ? GetDetailsText(ri) : CString();
 	}
 	return text;
 }
@@ -104,6 +109,10 @@ bool CRegistersView::OnDoubleClickList(HWND, int row, int, POINT const&) {
 
 bool CRegistersView::EditValue(int row) {
 	auto& ri = GetRegister(row);
+	if (!m_Live) {
+		::MessageBeep(MB_ICONWARNING);
+		return false;
+	}
 	if ((ri.Category & (RegisterType::General | RegisterType::Segment)) == RegisterType::None) {
 		::MessageBeep(MB_ICONWARNING);
 		return false;

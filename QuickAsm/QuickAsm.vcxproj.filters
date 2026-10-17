@@ -95,6 +95,9 @@
     <ClCompile Include="MainFrm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="MainFrmEmulator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="AsmEditor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
