@@ -19,6 +19,8 @@ CMainFrame::~CMainFrame() = default;
 BOOL CMainFrame::PreTranslateMessage(MSG* pMsg) {
 	if (CFrameWindowImpl<CMainFrame>::PreTranslateMessage(pMsg))
 		return TRUE;
+	if (m_MemoryView.PreTranslateMessage(pMsg))
+		return TRUE;
 
 	return m_Tabs.PreTranslateMessage(pMsg);
 }
@@ -29,14 +31,24 @@ BOOL CMainFrame::OnIdle() {
 	UIEnable(ID_FILE_SAVE_AS, anyText);
 	UIEnable(ID_ASM_ASSEMBLE, anyText);
 
-	auto editor = GetFocusedEditor();
-	auto writable = editor && !editor->IsReadOnly();
-	UIEnable(ID_EDIT_UNDO, writable && editor->CanUndo());
-	UIEnable(ID_EDIT_REDO, writable && editor->CanRedo());
-	UIEnable(ID_EDIT_CUT, writable && !editor->IsSelectionEmpty());
-	UIEnable(ID_EDIT_COPY, editor && !editor->IsSelectionEmpty());
-	UIEnable(ID_EDIT_PASTE, writable && editor->CanPaste());
-	UIEnable(ID_EDIT_CLEAR, writable && !editor->IsSelectionEmpty());
+	if (auto& hex = m_MemoryView.GetHexControl(); ::GetFocus() == hex) {
+		UIEnable(ID_EDIT_UNDO, hex.CanUndo());
+		UIEnable(ID_EDIT_REDO, hex.CanRedo());
+		UIEnable(ID_EDIT_CUT, hex.CanCut());
+		UIEnable(ID_EDIT_COPY, hex.CanCopy());
+		UIEnable(ID_EDIT_PASTE, hex.CanPaste());
+		UIEnable(ID_EDIT_CLEAR, hex.CanDelete());
+	}
+	else {
+		auto editor = GetFocusedEditor();
+		auto writable = editor && !editor->IsReadOnly();
+		UIEnable(ID_EDIT_UNDO, writable && editor->CanUndo());
+		UIEnable(ID_EDIT_REDO, writable && editor->CanRedo());
+		UIEnable(ID_EDIT_CUT, writable && !editor->IsSelectionEmpty());
+		UIEnable(ID_EDIT_COPY, editor && !editor->IsSelectionEmpty());
+		UIEnable(ID_EDIT_PASTE, writable && editor->CanPaste());
+		UIEnable(ID_EDIT_CLEAR, writable && !editor->IsSelectionEmpty());
+	}
 
 	UIUpdateToolBar();
 	return FALSE;
@@ -74,6 +86,7 @@ void CMainFrame::ApplyTheme() {
 	DrawMenuBar();
 	m_AsmSource.ApplyTheme();
 	m_Disassembly.ApplyTheme();
+	m_MemoryView.ApplyTheme();
 	SendMessageToDescendants(WM_UPDATE_DARKMODE);
 }
 
@@ -226,6 +239,9 @@ void CMainFrame::InitEmulator(uint8_t const* data, size_t size) {
 		m_Emulator.WriteMemory(m_Instructions[0].Address, data, size);
 	}
 	m_RegistersView.Refresh();
+	m_MemoryView.Refresh();
+	if (!m_Instructions.empty())
+		m_MemoryView.GotoAddress(m_Instructions[0].Address);
 }
 
 void CMainFrame::CreateBottomPane() {
@@ -238,12 +254,12 @@ void CMainFrame::CreateBottomPane() {
 	m_Tabs.SetImageList(images);	// (destroyed by the tab view)
 
 	m_RegistersView.Create(m_Tabs, rcDefault, nullptr, WS_CHILD | WS_CLIPCHILDREN);
+	m_MemoryView.Create(m_Tabs, rcDefault, nullptr, WS_CHILD | WS_CLIPCHILDREN);
 	// not ported yet
-	m_MemoryPlaceholder.Create(m_Tabs, rcDefault, L"Memory view: not ported yet", WS_CHILD | SS_CENTER | SS_CENTERIMAGE);
 	m_BreakpointsPlaceholder.Create(m_Tabs, rcDefault, L"Breakpoints: not ported yet", WS_CHILD | SS_CENTER | SS_CENTERIMAGE);
 
 	m_Tabs.AddPage(m_RegistersView, L"Registers", 0);
-	m_Tabs.AddPage(m_MemoryPlaceholder, L"Memory", 1);
+	m_Tabs.AddPage(m_MemoryView, L"Memory", 1);
 	m_Tabs.AddPage(m_BreakpointsPlaceholder, L"Breakpoints", 2);
 	m_Tabs.SetActivePage(0);
 }
@@ -377,6 +393,18 @@ LRESULT CMainFrame::OnFileClose(WORD, WORD, HWND, BOOL&) {
 }
 
 LRESULT CMainFrame::OnEditCommand(WORD, WORD wID, HWND, BOOL&) {
+	if (auto& hex = m_MemoryView.GetHexControl(); ::GetFocus() == hex) {
+		switch (wID) {
+			case ID_EDIT_UNDO: hex.Undo(); break;
+			case ID_EDIT_REDO: hex.Redo(); break;
+			case ID_EDIT_CUT: hex.Cut(); break;
+			case ID_EDIT_COPY: hex.Copy(); break;
+			case ID_EDIT_PASTE: hex.Paste(); break;
+			case ID_EDIT_CLEAR: hex.Delete(); break;
+		}
+		return 0;
+	}
+
 	auto editor = GetFocusedEditor();
 	if (!editor)
 		return 0;

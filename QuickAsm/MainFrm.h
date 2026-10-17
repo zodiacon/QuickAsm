@@ -5,6 +5,7 @@
 #include "CapstoneEngine.h"
 #include "UnicornEngine.h"
 #include "RegistersView.h"
+#include "MemoryView.h"
 #include <CustomSplitterWindow.h>
 #include <NativeCustomTabView.h>
 
@@ -100,8 +101,9 @@ private:
 	CNativeCustomTabView m_Tabs;
 	UnicornEngine m_Emulator;
 	CRegistersView m_RegistersView{ m_Emulator };
-	CStatic m_MemoryPlaceholder, m_BreakpointsPlaceholder;
 	std::vector<uint8_t> m_Memory;
+	CMemoryView m_MemoryView{ m_Memory };
+	CStatic m_BreakpointsPlaceholder;
 	CString m_FileName;
 	std::vector<std::unique_ptr<AssemblerBase>> m_Assemblers;
 	int m_AssemblerIndex{ 1 };

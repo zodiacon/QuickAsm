@@ -61,6 +61,11 @@
 #define ID_REGS_32BIT                   32832
 #define ID_REGS_64BIT                   32833
 #define ID_REGS_EDIT                    32834
+// the four memory data sizes must stay consecutive
+#define ID_MEMORY_1BYTE                 32835
+#define ID_MEMORY_2BYTES                32836
+#define ID_MEMORY_4BYTES                32837
+#define ID_MEMORY_8BYTES                32838
 // the three themes must stay consecutive, in DarkModeKind order (Light, Dark, System)
 #define ID_THEME_LIGHT                  32820
 #define ID_THEME_DARK                   32821
