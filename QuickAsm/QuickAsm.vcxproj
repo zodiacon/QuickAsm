@@ -149,6 +149,7 @@
     <ClInclude Include="CapstoneEngine.h" />
     <ClInclude Include="Helpers.h" />
     <ClInclude Include="KeystoneAssembler.h" />
+    <ClInclude Include="AboutDlg.h" />
     <ClInclude Include="AppSettings.h" />
     <ClInclude Include="AsmEditor.h" />
     <ClInclude Include="EditValueDlg.h" />
@@ -174,6 +175,7 @@
     <ClCompile Include="CapstoneEngine.cpp" />
     <ClCompile Include="Helpers.cpp" />
     <ClCompile Include="KeystoneAssembler.cpp" />
+    <ClCompile Include="AboutDlg.cpp" />
     <ClCompile Include="AsmEditor.cpp" />
     <ClCompile Include="MemoryView.cpp" />
     <ClCompile Include="RegistersView.cpp" />
@@ -231,6 +233,9 @@
     <ProjectReference Include="..\WTLHelper\HexControl\HexControl.vcxproj">
       <Project>{ef5c2f6b-5fcd-446c-be8d-1485407cd65a}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Tools\nasm.exe" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

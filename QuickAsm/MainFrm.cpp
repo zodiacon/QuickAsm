@@ -5,6 +5,7 @@
 #include "Helpers.h"
 #include "KeystoneAssembler.h"
 #include "NasmAssembler.h"
+#include "AboutDlg.h"
 #include <WTLHelper.h>
 #include <ToolbarHelper.h>
 #include <fstream>
@@ -92,6 +93,7 @@ void CMainFrame::InitMenu(HMENU hMenu) {
 		{ ID_ASM_STEPOVER, IDI_STEPOVER },
 		{ ID_ASM_STEPINTO, IDI_STEPINTO },
 		{ ID_ASM_TOGGLEBP, IDI_BREAKPOINT },
+		{ ID_APP_ABOUT, IDR_MAINFRAME },
 	};
 	WTLHelper::InitMenu(hMenu, commands, _countof(commands));
 }
@@ -114,6 +116,9 @@ void CMainFrame::UpdateUI() {
 	auto& settings = AppSettings::Get();
 	UISetRadioMenuItem(ID_THEME_LIGHT + settings.Theme(), ID_THEME_LIGHT, ID_THEME_SYSTEM);
 	UISetRadioMenuItem(ID_MODE_16BIT + (int)m_AsmMode, ID_MODE_16BIT, ID_MODE_64BIT);
+	// the radio state is a press on a toolbar, which doesn't last: the toolbar buttons are checked
+	for (int i = 0; i < 3; i++)
+		UISetCheck(ID_MODE_16BIT + i, i == (int)m_AsmMode);
 	UISetRadioMenuItem(ID_ASSEMBLER_KEYSTONE + m_AssemblerIndex, ID_ASSEMBLER_KEYSTONE, ID_ASSEMBLER_NASM);
 	UISetCheck(ID_VIEW_STATUS_BAR, IsStatusBarVisible());
 }
@@ -456,6 +461,12 @@ LRESULT CMainFrame::OnSavePointChanged(int, LPNMHDR, BOOL&) {
 
 LRESULT CMainFrame::OnFileExit(WORD, WORD, HWND, BOOL&) {
 	PostMessage(WM_CLOSE);
+	return 0;
+}
+
+LRESULT CMainFrame::OnAppAbout(WORD, WORD, HWND, BOOL&) {
+	CAboutDlg dlg;
+	dlg.DoModal(m_hWnd);
 	return 0;
 }
 

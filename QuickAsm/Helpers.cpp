@@ -1,5 +1,7 @@
 #include "pch.h"
 #include "Helpers.h"
+#include "resource.h"
+#include <ShlObj.h>
 #include "..\x64Types\x64Types.h"
 
 std::wstring Helpers::GetTempFilePath(PCWSTR name) {
@@ -94,4 +96,47 @@ CString Helpers::CR0ToString(uint64_t value) {
         if (value & (1LL << b.bit))
             text += b.text + CString(L"=1 ");
     return text;
+}
+
+std::vector<std::wstring> Helpers::GetNasmLocations() {
+    std::vector<std::wstring> locations;
+    WCHAR path[MAX_PATH];
+    ::GetModuleFileName(nullptr, path, _countof(path));
+    *wcsrchr(path, L'\\') = 0;
+    locations.push_back(std::wstring(path) + L"\\nasm.exe");
+
+    if (wil::unique_cotaskmem_string appData; SUCCEEDED(::SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &appData)))
+        locations.push_back(std::wstring(appData.get()) + L"\\QuickAsm\\nasm.exe");
+    return locations;
+}
+
+std::wstring Helpers::ExtractNasm() {
+    auto locations = GetNasmLocations();
+    for (auto& path : locations)
+        if (::GetFileAttributes(path.c_str()) != INVALID_FILE_ATTRIBUTES)
+            return path;
+
+    auto hRes = ::FindResource(nullptr, MAKEINTRESOURCE(IDR_NASM), RT_RCDATA);
+    auto hData = hRes ? ::LoadResource(nullptr, hRes) : nullptr;
+    auto data = hData ? ::LockResource(hData) : nullptr;
+    if (!data)
+        return L"";
+    auto size = ::SizeofResource(nullptr, hRes);
+
+    for (auto& path : locations) {
+        auto dir = path.substr(0, path.rfind(L'\\'));
+        ::SHCreateDirectoryEx(nullptr, dir.c_str(), nullptr);
+        // written whole to a temporary file first, so a failed write doesn't leave a broken nasm.exe
+        auto temp = path + L".tmp";
+        wil::unique_hfile hFile(::CreateFile(temp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr));
+        if (!hFile)
+            continue;
+        DWORD written;
+        auto ok = ::WriteFile(hFile.get(), data, size, &written, nullptr) && written == size;
+        hFile.reset();
+        if (ok && ::MoveFileEx(temp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING))
+            return path;
+        ::DeleteFile(temp.c_str());
+    }
+    return L"";
 }

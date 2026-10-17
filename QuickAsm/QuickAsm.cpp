@@ -5,6 +5,7 @@
 #include "resource.h"
 #include "MainFrm.h"
 #include "AppSettings.h"
+#include "Helpers.h"
 #include <WTLHelper.h>
 
 CAppModule _Module;
@@ -36,7 +37,7 @@ int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR /*
 	HRESULT hRes = ::CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
 	ATLASSERT(SUCCEEDED(hRes));
 
-	AtlInitCommonControls(ICC_BAR_CLASSES | ICC_LISTVIEW_CLASSES | ICC_TAB_CLASSES);
+	AtlInitCommonControls(ICC_BAR_CLASSES | ICC_LISTVIEW_CLASSES | ICC_TAB_CLASSES | ICC_LINK_CLASS);
 
 	auto& settings = AppSettings::Get();
 	settings.LoadFromKey(L"SOFTWARE\\ScorpioSoftware\\QuickAsm");
@@ -44,6 +45,8 @@ int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR /*
 	hRes = _Module.Init(nullptr, hInstance);
 	ATLASSERT(SUCCEEDED(hRes));
 
+	// before the main window: its NASM assembler looks for nasm.exe when it's created
+	Helpers::ExtractNasm();
 	Scintilla_RegisterClasses(hInstance);
 	WTLHelper::InitDarkMode(settings.EffectiveTheme());
 

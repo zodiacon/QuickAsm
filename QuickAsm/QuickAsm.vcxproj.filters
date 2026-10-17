@@ -42,6 +42,9 @@
     <ClInclude Include="MainFrm.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="AboutDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="AsmEditor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -93,6 +96,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MainFrm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AboutDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MainFrmEmulator.cpp">
@@ -231,5 +237,8 @@
     <Image Include="Icons\stop.ico">
       <Filter>Resource Files\Icons</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Tools\nasm.exe" />
   </ItemGroup>
 </Project>

@@ -5,22 +5,21 @@
 
 NasmAssembler::NasmAssembler() {
 	SetName(L"NASM");
-	//
-	// try the exe directory
-	//
-	WCHAR path[MAX_PATH];
-	::GetModuleFileName(nullptr, path, _countof(path));
-	*wcsrchr(path, L'\\') = 0;
-	m_NasmDir = path;
-	wcscat_s(path, L"\\nasm.exe");
-	if (::GetFileAttributes(path) != INVALID_FILE_ATTRIBUTES)
-		m_NasmPath = path;
+	// (extracted there on startup, if it wasn't already)
+	for (auto& path : Helpers::GetNasmLocations()) {
+		if (::GetFileAttributes(path.c_str()) != INVALID_FILE_ATTRIBUTES) {
+			m_NasmPath = path;
+			m_NasmDir = path.substr(0, path.rfind(L'\\'));
+			break;
+		}
+	}
 }
 
 AssemblerResults NasmAssembler::AssembleFile(std::wstring const& file) {
 	AssemblerResults results{};
 	if (m_NasmPath.empty()) {
 		results.Error = ERROR_FILE_NOT_FOUND;
+		results.Output = "nasm.exe not found";
 		return results;
 	}
 
@@ -58,15 +57,21 @@ AssemblerResults NasmAssembler::AssembleFile(std::wstring const& file) {
 		}
 	}
 
-	PROCESS_INFORMATION pi;
+	PROCESS_INFORMATION pi{};
 	STARTUPINFO si{ sizeof(si) };
 	auto tempOutput = Helpers::GetTempFilePath(L"log");
 	std::wstring objOutput = file.data();
 	objOutput = objOutput.substr(0, file.rfind(L'.')) + L".bin";
 
-	auto fullcmdline = m_NasmPath + L" -Z" + tempOutput + L" -o " + objOutput + L" " + srcFile;
-	if (::CreateProcess(nullptr, fullcmdline.data(), nullptr, nullptr, FALSE,
+	// (quoted: the paths may have spaces)
+	auto fullcmdline = L"\"" + m_NasmPath + L"\" -Z \"" + tempOutput + L"\" -o \"" + objOutput + L"\" \"" + srcFile + L"\"";
+	if (!::CreateProcess(nullptr, fullcmdline.data(), nullptr, nullptr, FALSE,
 		CREATE_NO_WINDOW, nullptr, m_NasmDir.c_str(), &si, &pi)) {
+		results.Error = ::GetLastError();
+		results.Output = "Failed to run nasm.exe";
+		return results;
+	}
+	{
 		::WaitForSingleObject(pi.hProcess, INFINITE);
 		std::ifstream stm(tempOutput);
 		if (stm.good()) {

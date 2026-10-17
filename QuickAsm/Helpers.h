@@ -8,5 +8,9 @@ struct Helpers abstract final {
 	static PCWSTR RegisterTypeToString(RegisterType type);
 	static CString CPUFlagsToString(uint32_t value);
 	static CString CR0ToString(uint64_t value);
+	// where nasm.exe is looked for, in order: the executable's folder, then the user's QuickAsm folder (if that isn't writable)
+	static std::vector<std::wstring> GetNasmLocations();
+	// writes the embedded nasm.exe to the first location it can, unless one has it already; returns its path (empty on failure)
+	static std::wstring ExtractNasm();
 };
 
