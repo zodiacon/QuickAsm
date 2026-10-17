@@ -1,6 +1,7 @@
 #pragma once
 
-// the starter programs of File > New from Template, by mode (16, 32 and 64 bit); both assemblers take them
+// the starter programs of File > New from Template, by mode (16, 32 and 64 bit); both assemblers take them,
+// and they use no fixed addresses (the memory's place and size are options)
 inline constexpr const char* SourceTemplates[] = {
 	"; A 16-bit program (Assembly > Mode sets the mode)\n"
 	"; F7 assembles, F5 runs, F10 / F11 step, F9 toggles a breakpoint\n"
@@ -8,8 +9,7 @@ inline constexpr const char* SourceTemplates[] = {
 	"start:\n"
 	"    mov cx, 5           ; n\n"
 	"    call sum            ; ax = 1 + 2 + ... + n\n"
-	"    mov di, 0x2000      ; (the memory is 64 KB, the stack at its top)\n"
-	"    mov [di], ax\n"
+	"    push ax             ; the result, on the stack (the Stack tab)\n"
 	"    jmp done\n"
 	"\n"
 	"sum:\n"
@@ -28,8 +28,7 @@ inline constexpr const char* SourceTemplates[] = {
 	"start:\n"
 	"    mov ecx, 5          ; n\n"
 	"    call sum            ; eax = 1 + 2 + ... + n\n"
-	"    mov edi, 0x2000     ; (the memory is 64 KB, the stack at its top)\n"
-	"    mov [edi], eax\n"
+	"    push eax            ; the result, on the stack (the Stack tab)\n"
 	"    jmp done\n"
 	"\n"
 	"sum:\n"
@@ -48,8 +47,7 @@ inline constexpr const char* SourceTemplates[] = {
 	"start:\n"
 	"    mov rcx, 5          ; n\n"
 	"    call sum            ; rax = 1 + 2 + ... + n\n"
-	"    mov rdi, 0x2000     ; (the memory is 64 KB, the stack at its top)\n"
-	"    mov [rdi], rax\n"
+	"    push rax            ; the result, on the stack (the Stack tab)\n"
 	"    jmp done\n"
 	"\n"
 	"sum:\n"

@@ -54,6 +54,8 @@ public:
 	// the bytes the code changed since the snapshot are highlighted: at a stop
 	void MarkChanges();
 	void GotoAddress(uint64_t address);
+	// the emulated address of the memory's first byte (the offsets are shown from it)
+	void SetBaseAddress(uint64_t address);
 	// the colors of the current theme (light or dark)
 	void ApplyTheme();
 
@@ -82,7 +84,8 @@ private:
 	CFixedMemoryBuffer m_Buffer;
 	CHexControl m_Hex;
 	// shown once the view has a size (scrolling to it before does nothing)
-	int64_t m_PendingAddress{ -1 };
+	int64_t m_PendingAddress{ -1 };	// (an offset)
+	uint64_t m_BaseAddress{ 0 };
 	std::vector<uint8_t> m_Snapshot;
 	std::vector<std::pair<int64_t, int64_t>> m_Changes;	// offset, length
 	CToolBarCtrl m_ToolBar;

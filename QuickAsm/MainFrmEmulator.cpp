@@ -29,13 +29,14 @@ void CMainFrame::InitEmulator(uint8_t const* data, size_t size, bool keepBreakpo
 
 	if (!m_Instructions.empty() && m_Emulator.Open(CpuArch::x86, (CpuMode)(1 << (1 + (int)m_AsmMode)))) {
 		std::ranges::fill(m_Memory, uint8_t(0));
-		m_Emulator.MapHostMemory(0, m_Memory.size(), MemProtection::All, m_Memory.data());
+		m_Emulator.MapHostMemory(m_MemoryBase, m_Memory.size(), MemProtection::All, m_Memory.data());
 		m_Emulator.WriteMemory(m_Instructions[0].Address, data, size);
-		// the stack at the top of the memory (a push at 0 would fault)
+		// the stack at the top of the memory (16 bit: of the first 64 KB, which SP can address)
+		auto top = MemoryEnd();
 		switch (m_AsmMode) {
-			case AsmMode::Bits16: m_Emulator.WriteReg(x86Register::SP, uint16_t(m_Memory.size() - 2)); break;
-			case AsmMode::Bits32: m_Emulator.WriteReg(x86Register::ESP, uint32_t(m_Memory.size())); break;
-			case AsmMode::Bits64: m_Emulator.WriteReg(x86Register::RSP, uint64_t(m_Memory.size())); break;
+			case AsmMode::Bits16: m_Emulator.WriteReg(x86Register::SP, uint16_t(std::min<uint64_t>(top, 0x10000) - 2)); break;
+			case AsmMode::Bits32: m_Emulator.WriteReg(x86Register::ESP, uint32_t(top)); break;
+			case AsmMode::Bits64: m_Emulator.WriteReg(x86Register::RSP, top); break;
 		}
 		m_CodeHook = m_Emulator.HookCode(HookType::CODE, [this](auto address, auto) { OnCodeHook(address); },
 			m_Instructions[0].Address, m_Instructions[0].Address + size - 1);
@@ -43,6 +44,7 @@ void CMainFrame::InitEmulator(uint8_t const* data, size_t size, bool keepBreakpo
 	m_RegistersView.SetLive(true);
 	m_RegistersView.Refresh();
 	m_RegistersView.ResetChanges();
+	m_MemoryView.SetBaseAddress(m_MemoryBase);
 	m_MemoryView.Reset();
 	UpdateStackView();
 	if (!m_Instructions.empty())
@@ -174,10 +176,11 @@ bool CMainFrame::CheckBreakpoint(Breakpoint& bp, bool& error) {
 			bool ReadMemory(uint64_t address, int size, uint64_t& value) override {
 				if (size == 0)
 					size = 2 << (int)Frame.m_AsmMode;
-				if (address >= Frame.m_Memory.size() || Frame.m_Memory.size() - address < (uint64_t)size)
+				auto bytes = Frame.MemoryAt(address, size);
+				if (!bytes)
 					return false;
 				value = 0;
-				::memcpy(&value, Frame.m_Memory.data() + address, size);
+				::memcpy(&value, bytes, size);
 				return true;
 			}
 		} context(*this);
@@ -233,9 +236,9 @@ void CMainFrame::UpdateStackView() {
 	}
 
 	std::vector<StackEntry> entries;
-	for (auto address = sp; address + size <= m_Memory.size() && entries.size() < 256; address += size) {
+	for (auto address = sp; MemoryAt(address, size) && entries.size() < 256; address += size) {
 		StackEntry entry{ address, 0 };
-		::memcpy(&entry.Value, m_Memory.data() + address, size);
+		::memcpy(&entry.Value, MemoryAt(address, size), size);
 		CString notes;
 		if (address == sp)
 			notes = spName;
@@ -456,10 +459,8 @@ std::vector<BreakpointInfo> CMainFrame::GetBreakpoints() const {
 	for (auto& [address, bp] : m_Breakpoints) {
 		auto line = LineFromAddress(address);
 		std::string text;
-		if (line >= 0) {
-			auto& insn = m_Instructions[line];
-			text = insn.Mnemonic + " " + insn.Operands;
-		}
+		if (line >= 0)
+			text = FormatInstruction(m_Instructions[line]);
 		breakpoints.push_back({ address, line, bp.Enabled, std::move(text), bp.Condition, bp.HitTarget, bp.Hits });
 	}
 	return breakpoints;

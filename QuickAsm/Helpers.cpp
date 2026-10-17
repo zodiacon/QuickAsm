@@ -1,4 +1,5 @@
 #include "pch.h"
+#include <charconv>
 #include "Helpers.h"
 #include "resource.h"
 #include <ShlObj.h>
@@ -139,4 +140,17 @@ std::wstring Helpers::ExtractNasm() {
         ::DeleteFile(temp.c_str());
     }
     return L"";
+}
+
+bool Helpers::ParseNumber(CString text, uint64_t& value) {
+	text.Trim();
+	std::string s(CStringA(text).MakeLower().GetString());
+	std::string_view digits(s);
+	int base = 10;
+	if (digits.starts_with("0x"))
+		base = 16, digits.remove_prefix(2);
+	else if (digits.ends_with('h'))
+		base = 16, digits.remove_suffix(1);
+	auto [end, ec] = std::from_chars(digits.data(), digits.data() + digits.size(), value, base);
+	return !digits.empty() && ec == std::errc() && end == digits.data() + digits.size();
 }

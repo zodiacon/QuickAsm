@@ -69,6 +69,9 @@
     <ClInclude Include="Templates.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MemoryDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="MemoryView.h">
       <Filter>Header Files</Filter>
     </ClInclude>

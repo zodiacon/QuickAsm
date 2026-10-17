@@ -18,6 +18,11 @@ bool CapstoneEngine::Open(cs_mode mode) {
 	return true;
 }
 
+bool CapstoneEngine::SetSyntax(bool att) {
+	m_Error = cs_option(m_CS, CS_OPT_SYNTAX, att ? CS_OPT_SYNTAX_ATT : CS_OPT_SYNTAX_INTEL);
+	return m_Error == CS_ERR_OK;
+}
+
 std::vector<Instruction> CapstoneEngine::Disassemble(uint8_t const* code, size_t size, uint64_t address) {
 	if (m_CS == 0)
 		return {};

@@ -79,8 +79,14 @@ void CMemoryView::HighlightChanges() {
 }
 
 void CMemoryView::GotoAddress(uint64_t address) {
-	m_PendingAddress = (int64_t)address;
+	m_PendingAddress = (int64_t)(address - m_BaseAddress);
 	GotoPending();
+}
+
+void CMemoryView::SetBaseAddress(uint64_t address) {
+	m_BaseAddress = address;
+	m_Hex.SetBiasOffset((int64_t)address);
+	m_Hex.Invalidate();
 }
 
 void CMemoryView::GotoPending() {

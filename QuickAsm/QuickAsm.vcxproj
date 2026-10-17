@@ -157,6 +157,7 @@
     <ClInclude Include="Expression.h" />
     <ClInclude Include="InPlaceEdit.h" />
     <ClInclude Include="Templates.h" />
+    <ClInclude Include="MemoryDlg.h" />
     <ClInclude Include="MemoryView.h" />
     <ClInclude Include="RegistersView.h" />
     <ClInclude Include="ScintillaCtrl.h" />

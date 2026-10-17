@@ -12,5 +12,7 @@ struct Helpers abstract final {
 	static std::vector<std::wstring> GetNasmLocations();
 	// writes the embedded nasm.exe to the first location it can, unless one has it already; returns its path (empty on failure)
 	static std::wstring ExtractNasm();
+	// a number typed by the user: decimal, or hex (0x1F or 1Fh); no octal, no sign
+	static bool ParseNumber(CString text, uint64_t& value);
 };
 

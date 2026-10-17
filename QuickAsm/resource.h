@@ -6,6 +6,7 @@
 #define IDR_NASM                        130
 #define IDD_ABOUTBOX                    131
 #define IDD_BREAKPOINT                  132
+#define IDD_MEMORY                      133
 
 #define IDI_RESTART                     200
 #define IDI_8BIT                        201
@@ -52,6 +53,9 @@
 #define IDC_STACK                       1011
 #define IDC_CONDITION                   1012
 #define IDC_HITCOUNT                    1013
+#define IDC_MEMBASE                     1014
+#define IDC_MEMSIZE                     1015
+#define IDC_STACKSIZE                   1016
 
 #define ID_ASM_ASSEMBLE                 32800
 #define ID_ASM_RUN                      32801
@@ -98,6 +102,11 @@
 #define ID_EDIT_COMPLETEWORD            32852
 #define ID_OPTIONS_FONT                 32853
 #define ID_OPTIONS_AUTOCOMPLETE         32854
+#define ID_DISASM_INTEL                 32855
+#define ID_DISASM_ATT                   32856
+#define ID_DISASM_BYTES                 32857
+#define ID_DISASM_UPPERCASE             32858
+#define ID_OPTIONS_MEMORY               32859
 // the three themes must stay consecutive, in DarkModeKind order (Light, Dark, System)
 #define ID_THEME_LIGHT                  32820
 #define ID_THEME_DARK                   32821
@@ -107,9 +116,9 @@
 //
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        133
-#define _APS_NEXT_COMMAND_VALUE         32855
-#define _APS_NEXT_CONTROL_VALUE         1014
+#define _APS_NEXT_RESOURCE_VALUE        134
+#define _APS_NEXT_COMMAND_VALUE         32860
+#define _APS_NEXT_CONTROL_VALUE         1017
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

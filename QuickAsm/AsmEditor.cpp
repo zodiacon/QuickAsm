@@ -100,19 +100,30 @@ namespace {
 			[](char x, char y) { return ::tolower((unsigned char)x) < ::tolower((unsigned char)y); });
 	}
 
-	// the words of the lexer's lists that can be completed (not the directive operands, mostly MASM's)
+	// NASM's directives and operand keywords (the lexer's directive lists are mostly MASM's)
+	const char NasmDirectives[] =
+		"bits use16 use32 use64 default rel abs section segment absolute extern global common cpu org align alignb "
+		"times equ db dw dd dq dt do dy dz resb resw resd resq rest reso resy resz incbin struc endstruc istruc iend at "
+		"seg wrt strict nosplit ptr byte word dword qword tword oword yword zword far near short";
+
+	void AddWords(std::vector<std::string>& words, std::string_view list, bool preprocessorOnly = false) {
+		while (!list.empty()) {
+			auto end = list.find(' ');
+			auto word = list.substr(0, end);
+			if (!word.empty() && (!preprocessorOnly || word[0] == '%'))
+				words.emplace_back(word);
+			list.remove_prefix(end == std::string_view::npos ? list.size() : end + 1);
+		}
+	}
+
+	// the instructions and registers of the lexer's lists, NASM's directives and its preprocessor's (%define...)
 	std::vector<std::string> const& CompletionWords() {
 		static const std::vector<std::string> words = [] {
-			std::vector<std::string> words{ "byte", "word", "dword", "qword", "tword", "rel" };
-			for (int i : { 0, 1, 2, 3, 5 }) {
-				std::string_view list(KeyWords_ASM[i]);
-				while (!list.empty()) {
-					auto end = list.find(' ');
-					if (end > 0)
-						words.emplace_back(list.substr(0, end));
-					list.remove_prefix(end == std::string_view::npos ? list.size() : end + 1);
-				}
-			}
+			std::vector<std::string> words;
+			for (int i : { 0, 1, 2, 5 })
+				AddWords(words, KeyWords_ASM[i]);
+			AddWords(words, KeyWords_ASM[3], true);
+			AddWords(words, NasmDirectives);
 			std::ranges::sort(words);
 			words.erase(std::unique(words.begin(), words.end()), words.end());
 			return words;

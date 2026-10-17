@@ -14,6 +14,12 @@ public:
 		SETTING_STRING(FontFace, L"Consolas");	// the editors'
 		SETTING(FontSize, 12, SettingType::Int32);	// points
 		SETTING(AutoComplete, 1, SettingType::Bool);
+		SETTING(DisasmSyntax, 0, SettingType::Int32);	// 0: Intel, 1: AT&T
+		SETTING(DisasmBytes, 1, SettingType::Bool);
+		SETTING(DisasmUpperCase, 0, SettingType::Bool);
+		SETTING(MemoryBase, 0ull, SettingType::Int64);	// the emulator's memory
+		SETTING(MemorySize, 64, SettingType::Int32);	// KB
+		SETTING(StackSize, 4, SettingType::Int32);		// KB, at the top of the memory
 	END_SETTINGS
 
 	DEF_SETTING(Theme, int)
@@ -24,6 +30,12 @@ public:
 	DEF_SETTING_STRING(FontFace)
 	DEF_SETTING(FontSize, int)
 	DEF_SETTING(AutoComplete, bool)
+	DEF_SETTING(DisasmSyntax, int)
+	DEF_SETTING(DisasmBytes, bool)
+	DEF_SETTING(DisasmUpperCase, bool)
+	DEF_SETTING(MemoryBase, uint64_t)
+	DEF_SETTING(MemorySize, int)
+	DEF_SETTING(StackSize, int)
 	DEF_SETTING_MULTI(RecentFiles)		// the last first
 
 	DarkModeKind ThemeKind() const {

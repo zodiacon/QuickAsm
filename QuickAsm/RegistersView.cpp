@@ -16,9 +16,16 @@ void CRegistersView::Refresh() {
 	m_Items.clear();
 	if (m_Emulator.IsOpen()) {
 		auto mode = (DWORD)m_Emulator.GetMode();
+		if (mode != m_FilterMode) {
+			// the mode's general registers (CS_MODE_16/32/64 are 2, 4 and 8: the sizes in bytes)
+			m_Filter = mode;
+			m_FilterMode = mode;
+			UpdateFilterButtons();
+		}
 		for (int i = 0; i < (int)AllRegisters.size(); i++) {
 			auto& ri = AllRegisters[i];
-			if (((DWORD)ri.Category & mode) && (m_Filter & (ri.Size >> 3)))
+			bool general = (ri.Category & RegisterType::General) != RegisterType::None;
+			if (((DWORD)ri.Category & mode) && (!general || (m_Filter & (ri.Size >> 3))))
 				m_Items.push_back(i);
 		}
 	}
@@ -211,8 +218,7 @@ LRESULT CRegistersView::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 		{ ID_REGS_EDIT, IDI_EDIT },
 	};
 	m_ToolBar.Attach(ToolbarHelper::CreateAndInitToolBar(m_hWnd, buttons, _countof(buttons), 16));
-	for (int i = 0; i < 4; i++)
-		m_ToolBar.CheckButton(ID_REGS_8BIT + i, (m_Filter & (1 << i)) != 0);
+	UpdateFilterButtons();
 
 	m_List.Create(m_hWnd, rcDefault, nullptr, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | LVS_REPORT | LVS_OWNERDATA | LVS_SINGLESEL | LVS_SHOWSELALWAYS,
 		0, IDC_REGISTERS);
@@ -274,6 +280,11 @@ LRESULT CRegistersView::OnListBeginScroll(int, LPNMHDR, BOOL&) {
 	// (the edit box would stay where the cell was)
 	m_Edit.Cancel();
 	return 0;
+}
+
+void CRegistersView::UpdateFilterButtons() {
+	for (int i = 0; i < 4; i++)
+		m_ToolBar.CheckButton(ID_REGS_8BIT + i, (m_Filter & (1 << i)) != 0);
 }
 
 LRESULT CRegistersView::OnFilter(WORD, WORD wID, HWND, BOOL&) {

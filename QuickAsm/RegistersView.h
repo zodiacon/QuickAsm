@@ -64,14 +64,17 @@ private:
 	LRESULT OnListBeginScroll(int /*idCtrl*/, LPNMHDR /*pnmh*/, BOOL& /*bHandled*/);
 	LRESULT OnFilter(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnEdit(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	void UpdateFilterButtons();
 
 	UnicornEngine& m_Emulator;
 	CToolBarCtrl m_ToolBar;
 	CListViewCtrl m_List;
 	CInPlaceEdit m_Edit;
 	std::vector<int> m_Items;	// indices into AllRegisters
-	// the register sizes shown: bit 0 for 8 bit, 1 for 16, 2 for 32, 3 for 64 (tested against RegisterInfo::Size >> 3)
+	// the general register sizes shown: bit 0 for 8 bit, 1 for 16, 2 for 32, 3 for 64 (tested against RegisterInfo::Size >> 3);
+	// the mode's size when the mode changes (the other registers are always shown)
 	DWORD m_Filter{ 1 << 2 };
+	DWORD m_FilterMode{ 0 };	// the mode the filter was set for
 	bool m_Live{ true };
 	std::unordered_map<int, CString> m_Values;	// at the last stop
 	std::unordered_set<int> m_Changed;			// since the stop before

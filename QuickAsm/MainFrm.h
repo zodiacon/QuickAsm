@@ -83,6 +83,8 @@ public:
 		COMMAND_ID_HANDLER(ID_EDIT_COMPLETEWORD, OnEditCompleteWord)
 		COMMAND_ID_HANDLER(ID_OPTIONS_AUTOCOMPLETE, OnOptionsAutoComplete)
 		COMMAND_ID_HANDLER(ID_OPTIONS_FONT, OnOptionsFont)
+		COMMAND_RANGE_HANDLER(ID_DISASM_INTEL, ID_DISASM_UPPERCASE, OnDisassemblyOption)
+		COMMAND_ID_HANDLER(ID_OPTIONS_MEMORY, OnOptionsMemory)
 		COMMAND_ID_HANDLER(ID_ASM_ASSEMBLE, OnAssemble)
 		COMMAND_RANGE_HANDLER(ID_ASSEMBLER_KEYSTONE, ID_ASSEMBLER_NASM, OnAssembler)
 		COMMAND_ID_HANDLER(ID_ASM_RUN, OnRun)
@@ -153,7 +155,12 @@ private:
 	static std::vector<int> GetErrorLines(std::string const& errors);
 	// the line of an error ("<line>: ..."), 0 based; -1 if none
 	static int ParseErrorLine(std::string const& text);
+	// shows the code's instructions and sets up the emulator with it
 	void Disassemble(uint8_t const* data, size_t size);
+	// the instructions and the text, with the disassembly options (the same code: the emulator stays as it is)
+	void DisassembleText(uint8_t const* data, size_t size);
+	// with the case option
+	std::string FormatInstruction(Instruction const& insn) const;
 	void CreateBottomPane();
 	void CreateToolBar();
 	// the address in the address box (false if it isn't one)
@@ -232,6 +239,15 @@ private:
 	LRESULT OnEditCompleteWord(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnOptionsAutoComplete(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnOptionsFont(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnDisassemblyOption(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnOptionsMemory(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	// the memory from the settings (the defaults if they aren't valid)
+	void SetupMemory();
+	uint64_t MemoryEnd() const;
+	// the code (or data) fits there: in the memory, below the stack
+	bool FitsInMemory(uint64_t address, size_t size) const;
+	// the host's bytes of an emulated range; null if it isn't all in the memory
+	uint8_t const* MemoryAt(uint64_t address, size_t size) const;
 	LRESULT OnSourceCharAdded(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
 	LRESULT OnAssemble(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnAssembler(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
@@ -247,7 +263,9 @@ private:
 	CNativeCustomTabView m_Tabs;
 	UnicornEngine m_Emulator;
 	CRegistersView m_RegistersView{ m_Emulator };
-	std::vector<uint8_t> m_Memory;
+	std::vector<uint8_t> m_Memory;	// at m_MemoryBase
+	uint64_t m_MemoryBase{ 0 };
+	uint64_t m_StackSize{ 0x1000 };	// (at the top of the memory)
 	CMemoryView m_MemoryView{ m_Memory };
 	CBreakpointsView m_BreakpointsView{ *this };
 	CStackView m_StackView;

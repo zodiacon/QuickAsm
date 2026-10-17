@@ -13,6 +13,8 @@ class CapstoneEngine final {
 public:
 	~CapstoneEngine();
 	bool Open(cs_mode mode);
+	// Intel (the default) or AT&T
+	bool SetSyntax(bool att);
 	std::vector<Instruction> Disassemble(uint8_t const* code, size_t size, uint64_t address);
 	cs_err GetLastError() const;
 	static const char* GetError(cs_err error);

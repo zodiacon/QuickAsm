@@ -7,12 +7,13 @@
 #include "NasmAssembler.h"
 #include "AboutDlg.h"
 #include "Templates.h"
+#include "MemoryDlg.h"
 #include <WTLHelper.h>
 #include <ToolbarHelper.h>
 #include <fstream>
 
 CMainFrame::CMainFrame() {
-	m_Memory.resize(1 << 16);
+	SetupMemory();
 	m_Assemblers.push_back(std::make_unique<KeystoneAssembler>());
 	m_Assemblers.push_back(std::make_unique<NasmAssembler>());
 }
@@ -52,6 +53,8 @@ BOOL CMainFrame::OnIdle() {
 	UIEnable(ID_ASM_ENABLEBP, haveCode);
 	UIEnable(ID_ASM_DELETEALLBP, haveCode);
 	UIEnable(ID_ASM_BPCONDITION, haveCode);
+	for (UINT id = ID_DISASM_INTEL; id <= ID_DISASM_UPPERCASE; id++)
+		UIEnable(id, !running);
 	// the code's setup stays as it is while it runs
 	for (UINT id = ID_MODE_16BIT; id <= ID_MODE_64BIT; id++)
 		UIEnable(id, !busy);
@@ -135,6 +138,9 @@ void CMainFrame::UpdateUI() {
 	UISetRadioMenuItem(ID_ASSEMBLER_KEYSTONE + m_AssemblerIndex, ID_ASSEMBLER_KEYSTONE, ID_ASSEMBLER_NASM);
 	UISetCheck(ID_VIEW_STATUS_BAR, IsStatusBarVisible());
 	UISetCheck(ID_OPTIONS_AUTOCOMPLETE, settings.AutoComplete());
+	UISetRadioMenuItem(ID_DISASM_INTEL + std::clamp(settings.DisasmSyntax(), 0, 1), ID_DISASM_INTEL, ID_DISASM_ATT);
+	UISetCheck(ID_DISASM_BYTES, settings.DisasmBytes());
+	UISetCheck(ID_DISASM_UPPERCASE, settings.DisasmUpperCase());
 }
 
 void CMainFrame::UpdateTitle() {
@@ -232,11 +238,11 @@ bool CMainFrame::ParseAddress() {
 	CString text;
 	m_AddressEdit.GetWindowText(text);
 	text.Trim();
-	PWSTR end = nullptr;
-	auto address = ::wcstoull(text, &end, 0);
-	if (text.IsEmpty() || *end || address >= m_Memory.size()) {
+	uint64_t address;
+	if (!Helpers::ParseNumber(text, address) || !FitsInMemory(address, 1)) {
 		CString message;
-		message.Format(L"The address must be a number below 0x%zX (decimal, or hex with 0x).", m_Memory.size());
+		message.Format(L"The address must be a number from 0x%llX to below 0x%llX, under the stack (decimal, or hex with 0x).",
+			m_MemoryBase, MemoryEnd() - m_StackSize);
 		AtlMessageBox(m_hWnd, (PCWSTR)message, IDR_MAINFRAME, MB_ICONWARNING);
 		m_AddressEdit.SetFocus();
 		m_AddressEdit.SetSelAll();
@@ -274,8 +280,8 @@ void CMainFrame::Assemble() {
 		m_AsmBytes = Helpers::ReadFileContents(results.OutputFile.c_str());
 	else
 		m_AsmBytes = std::move(results.Bytes);
-	if (m_Address + m_AsmBytes.size() > m_Memory.size()) {
-		AtlMessageBox(m_hWnd, L"The code doesn't fit in the emulator's memory at this address.", IDR_MAINFRAME, MB_ICONWARNING);
+	if (!FitsInMemory(m_Address, m_AsmBytes.size())) {
+		AtlMessageBox(m_hWnd, L"The code doesn't fit in the emulator's memory (below the stack) at this address.", IDR_MAINFRAME, MB_ICONWARNING);
 		m_AsmBytes.clear();
 	}
 	Disassemble(m_AsmBytes.data(), m_AsmBytes.size());
@@ -390,26 +396,139 @@ void CMainFrame::ShowWarnings(std::string const& warnings) {
 }
 
 void CMainFrame::Disassemble(uint8_t const* data, size_t size) {
-	CapstoneEngine cs;
-	if (!cs.Open((cs_mode)(1 << (1 + (int)m_AsmMode))))
-		return;
-
-	m_Instructions = cs.Disassemble(data, size, m_Address);
-	CStringA text;
-	for (auto& insn : m_Instructions) {
-		text.AppendFormat("0x%08X %-8s %-24s ;", (DWORD)insn.Address, insn.Mnemonic.c_str(), insn.Operands.c_str());
-		for (auto b : insn.Bytes)
-			text.AppendFormat(" %02X", b);
-		text += "\n";
-	}
-	m_Disassembly.SetReadOnly(false);
-	m_Disassembly.SetText(text);
-	m_Disassembly.SetReadOnly(true);
+	DisassembleText(data, size);
 	InitEmulator(data, size);
 
 	CString status;
 	status.Format(L"%zu instructions, %zu bytes", m_Instructions.size(), size);
 	m_StatusBar.SetText(0, status);
+}
+
+void CMainFrame::DisassembleText(uint8_t const* data, size_t size) {
+	auto& settings = AppSettings::Get();
+	CapstoneEngine cs;
+	if (!cs.Open((cs_mode)(1 << (1 + (int)m_AsmMode))))
+		return;
+	cs.SetSyntax(settings.DisasmSyntax() == 1);
+
+	m_Instructions = cs.Disassemble(data, size, m_Address);
+	auto bytes = settings.DisasmBytes();
+	CStringA text;
+	for (auto& insn : m_Instructions) {
+		auto mnemonicSize = insn.Mnemonic.size();
+		auto line = FormatInstruction(insn);
+		// (the mnemonic and the operands in columns)
+		text.AppendFormat("0x%08X %-8s %-28s", (DWORD)insn.Address, line.substr(0, mnemonicSize).c_str(),
+			line.size() > mnemonicSize ? line.substr(mnemonicSize + 1).c_str() : "");
+		if (bytes) {
+			text += " ;";
+			for (auto b : insn.Bytes)
+				text.AppendFormat(" %02X", b);
+		}
+		text.TrimRight();
+		text += "\n";
+	}
+	m_Disassembly.SetReadOnly(false);
+	m_Disassembly.SetText(text);
+	m_Disassembly.SetReadOnly(true);
+}
+
+std::string CMainFrame::FormatInstruction(Instruction const& insn) const {
+	auto text = insn.Operands.empty() ? insn.Mnemonic : insn.Mnemonic + " " + insn.Operands;
+	if (AppSettings::Get().DisasmUpperCase()) {
+		std::ranges::transform(text, text.begin(), [](char ch) { return (char)::toupper((unsigned char)ch); });
+		// (the numbers' prefix stays as it was: 0X1000 is harder to read)
+		for (size_t pos = 0; (pos = text.find("0X", pos)) != std::string::npos; pos += 2)
+			text[pos + 1] = 'x';
+	}
+	return text;
+}
+
+LRESULT CMainFrame::OnDisassemblyOption(WORD, WORD wID, HWND, BOOL&) {
+	auto& settings = AppSettings::Get();
+	switch (wID) {
+		case ID_DISASM_INTEL: settings.DisasmSyntax(0); break;
+		case ID_DISASM_ATT: settings.DisasmSyntax(1); break;
+		case ID_DISASM_BYTES: settings.DisasmBytes(!settings.DisasmBytes()); break;
+		case ID_DISASM_UPPERCASE: settings.DisasmUpperCase(!settings.DisasmUpperCase()); break;
+	}
+	UpdateUI();
+	// (not while the code runs: the emulator thread reads the instructions; the menu items are disabled then)
+	if (!m_AsmBytes.empty() && m_EmulatorState != EmulatorState::Running) {
+		DisassembleText(m_AsmBytes.data(), m_AsmBytes.size());
+		// (the text is new: its markers too)
+		BreakpointsChanged();
+		ShowCurrentLine(m_CurrentLine);
+		m_BreakpointsView.Refresh();
+	}
+	return 0;
+}
+
+void CMainFrame::SetupMemory() {
+	auto& settings = AppSettings::Get();
+	uint64_t base = settings.MemoryBase();
+	uint32_t size = settings.MemorySize(), stack = settings.StackSize();
+	if (!CMemoryDlg::Validate(base, size, stack).IsEmpty())
+		base = 0, size = 64, stack = 4;
+	m_MemoryBase = base;
+	m_StackSize = stack * 1024ull;
+	// (zeroed: set up again by the emulator anyway)
+	m_Memory.assign(size * 1024ull, 0);
+}
+
+uint64_t CMainFrame::MemoryEnd() const {
+	return m_MemoryBase + m_Memory.size();
+}
+
+bool CMainFrame::FitsInMemory(uint64_t address, size_t size) const {
+	return address >= m_MemoryBase && address + size <= MemoryEnd() - m_StackSize;
+}
+
+uint8_t const* CMainFrame::MemoryAt(uint64_t address, size_t size) const {
+	if (address < m_MemoryBase || address - m_MemoryBase > m_Memory.size() || m_Memory.size() - (address - m_MemoryBase) < size)
+		return nullptr;
+	return m_Memory.data() + (address - m_MemoryBase);
+}
+
+LRESULT CMainFrame::OnOptionsMemory(WORD, WORD, HWND, BOOL&) {
+	auto& settings = AppSettings::Get();
+	CMemoryDlg dlg;
+	dlg.Base = m_MemoryBase;
+	dlg.SizeKB = (uint32_t)(m_Memory.size() / 1024);
+	dlg.StackKB = (uint32_t)(m_StackSize / 1024);
+	if (dlg.DoModal(m_hWnd) != IDOK)
+		return 0;
+
+	// (the memory is reallocated: the emulator, which maps it, is set up again)
+	StopEmulator();
+	settings.MemoryBase(dlg.Base);
+	settings.MemorySize((int)dlg.SizeKB);
+	settings.StackSize((int)dlg.StackKB);
+	SetupMemory();
+
+	if (!FitsInMemory(m_Address, 1)) {
+		// an address in the new memory, for the next assembly
+		m_Address = m_MemoryBase + std::min<uint64_t>(0x1000, m_Memory.size() / 4);
+		CString text;
+		text.Format(L"0x%llX", m_Address);
+		m_AddressEdit.SetWindowText(text);
+	}
+	if (!m_AsmBytes.empty() && (m_Instructions.empty() || m_Instructions[0].Address != m_Address || !FitsInMemory(m_Address, m_AsmBytes.size()))) {
+		// the code was made for an address the memory doesn't have now
+		m_AsmBytes.clear();
+		m_Instructions.clear();
+		m_AddressToSourceLine.clear();
+		m_AssembledSource.clear();
+		m_Disassembly.SetReadOnly(false);
+		m_Disassembly.SetText("; the code doesn't fit in the memory now: assemble it again\n");
+		m_Disassembly.SetReadOnly(true);
+	}
+	auto bytes = m_AsmBytes;
+	InitEmulator(bytes.data(), bytes.size(), !bytes.empty());
+	CString status;
+	status.Format(L"Memory: 0x%llX-0x%llX, stack %llu KB", m_MemoryBase, MemoryEnd() - 1, m_StackSize / 1024);
+	m_StatusBar.SetText(0, status);
+	return 0;
 }
 
 bool CMainFrame::OpenFile(PCWSTR file) {
@@ -430,8 +549,8 @@ bool CMainFrame::OpenFile(PCWSTR file) {
 		// a binary file is disassembled; the source (and its file) stays as it is
 		if (!ParseAddress())
 			return false;
-		if (m_Address + bytes.size() > m_Memory.size()) {
-			AtlMessageBox(m_hWnd, L"The file doesn't fit in the emulator's memory at this address.", IDR_MAINFRAME, MB_ICONWARNING);
+		if (!FitsInMemory(m_Address, bytes.size())) {
+			AtlMessageBox(m_hWnd, L"The file doesn't fit in the emulator's memory (below the stack) at this address.", IDR_MAINFRAME, MB_ICONWARNING);
 			return false;
 		}
 		m_AsmBytes = std::move(bytes);
@@ -652,8 +771,10 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	// as last used
 	m_AssemblerIndex = std::clamp(settings.Assembler(), 0, (int)m_Assemblers.size() - 1);
 	m_AsmMode = static_cast<AsmMode>(std::clamp(settings.AsmMode(), 0, 2));
-	if (auto address = ::wcstoull(settings.Address().c_str(), nullptr, 0); address < m_Memory.size())
+	if (uint64_t address; Helpers::ParseNumber(settings.Address().c_str(), address) && FitsInMemory(address, 1))
 		m_Address = address;
+	else
+		m_Address = m_MemoryBase + std::min<uint64_t>(0x1000, m_Memory.size() / 4);
 
 	CreateToolBar();
 	CreateSimpleStatusBar();
