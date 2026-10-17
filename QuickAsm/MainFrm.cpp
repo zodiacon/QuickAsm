@@ -462,6 +462,7 @@ LRESULT CMainFrame::OnFileExit(WORD, WORD, HWND, BOOL&) {
 LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL&) {
 	CSimpleFileDialog dlg(TRUE, L"asm", nullptr, OFN_FILEMUSTEXIST | OFN_EXPLORER | OFN_ENABLESIZING,
 		L"Assembly files (*.asm)\0*.asm\0Binary files (*.bin)\0*.bin\0All files (*.*)\0*.*\0", m_hWnd);
+	SuspendResumeHook sr;
 	if (dlg.DoModal() != IDOK)
 		return 0;
 
