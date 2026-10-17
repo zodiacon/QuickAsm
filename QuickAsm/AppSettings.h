@@ -12,6 +12,7 @@ public:
 
 	DEF_SETTING(Theme, int)
 	DEF_SETTING(ViewStatusBar, bool)
+	DEF_SETTING_MULTI(RecentFiles)		// the last first
 
 	DarkModeKind ThemeKind() const {
 		return static_cast<DarkModeKind>(Theme());

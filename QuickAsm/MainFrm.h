@@ -8,6 +8,7 @@
 #include "RegistersView.h"
 #include "MemoryView.h"
 #include "BreakpointsView.h"
+#include "RecentFilesManager.h"
 #include <CustomSplitterWindow.h>
 #include <NativeCustomTabView.h>
 #include <mutex>
@@ -58,6 +59,7 @@ public:
 		COMMAND_ID_HANDLER(ID_FILE_SAVE, OnFileSave)
 		COMMAND_ID_HANDLER(ID_FILE_SAVE_AS, OnFileSaveAs)
 		COMMAND_ID_HANDLER(ID_FILE_CLOSE, OnFileClose)
+		COMMAND_RANGE_HANDLER(ATL_IDS_MRU_FILE, ATL_IDS_MRU_FILE + 14, OnRecentFile)
 		COMMAND_ID_HANDLER(ID_EDIT_UNDO, OnEditCommand)
 		COMMAND_ID_HANDLER(ID_EDIT_REDO, OnEditCommand)
 		COMMAND_ID_HANDLER(ID_EDIT_CUT, OnEditCommand)
@@ -105,6 +107,8 @@ private:
 	// false if the user canceled
 	bool SaveChangesIfNeeded();
 	bool SaveSource(PCWSTR path);
+	void AddRecentFile(PCWSTR path);
+	void UpdateRecentFilesMenu();
 	bool DoSaveAs();
 	void Assemble();
 	void ShowWarnings(std::string const& warnings);
@@ -156,6 +160,7 @@ private:
 	LRESULT OnFileSave(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnFileSaveAs(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnFileClose(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnRecentFile(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnEditCommand(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnViewStatusBar(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnAssemble(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
@@ -179,6 +184,7 @@ private:
 	CEdit m_AddressEdit;
 	CStatic m_AssemblerLabel, m_AddressLabel;
 	CString m_FileName;
+	RecentFilesManager m_RecentFiles;
 	std::vector<std::unique_ptr<AssemblerBase>> m_Assemblers;
 	int m_AssemblerIndex{ 1 };
 	AsmMode m_AsmMode{ AsmMode::Bits32 };

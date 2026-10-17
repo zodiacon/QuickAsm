@@ -171,7 +171,33 @@ bool CMainFrame::SaveSource(PCWSTR path) {
 	m_FileName = path;
 	m_AsmSource.SetSavePoint();
 	UpdateTitle();
+	AddRecentFile(path);
 	return true;
+}
+
+void CMainFrame::AddRecentFile(PCWSTR path) {
+	m_RecentFiles.AddFile(path);
+	AppSettings::Get().RecentFiles(m_RecentFiles.Files());
+	UpdateRecentFilesMenu();
+}
+
+void CMainFrame::UpdateRecentFilesMenu() {
+	// the File menu's submenu
+	auto fileMenu = CMenuHandle(GetMenu()).GetSubMenu(0);
+	CMenuHandle menu;
+	for (int i = 0; i < fileMenu.GetMenuItemCount() && !menu; i++)
+		menu = fileMenu.GetSubMenu(i);
+	ATLASSERT(menu);
+
+	while (menu.DeleteMenu(0, MF_BYPOSITION))
+		;
+	if (m_RecentFiles.IsEmpty()) {
+		menu.AppendMenu(MF_STRING | MF_GRAYED, ID_RECENTFILES_EMPTY, L"(Empty)");
+		return;
+	}
+	int i = 0;
+	for (auto& file : m_RecentFiles.Files())
+		menu.AppendMenu(MF_STRING, ATL_IDS_MRU_FILE + i++, file.c_str());
 }
 
 bool CMainFrame::DoSaveAs() {
@@ -281,7 +307,12 @@ void CMainFrame::Disassemble(uint8_t const* data, size_t size) {
 	m_StatusBar.SetText(0, status);
 }
 
-bool CMainFrame::OpenFile(PCWSTR path) {
+bool CMainFrame::OpenFile(PCWSTR file) {
+	// (as the recent files keep it: a relative path, as from the command line, wouldn't do later)
+	WCHAR path[MAX_PATH];
+	if (!::GetFullPathName(file, _countof(path), path, nullptr))
+		wcscpy_s(path, file);
+
 	if (::GetFileAttributes(path) == INVALID_FILE_ATTRIBUTES) {
 		CString text;
 		text.Format(L"File not found: %s", path);
@@ -300,6 +331,7 @@ bool CMainFrame::OpenFile(PCWSTR path) {
 		}
 		m_AsmBytes = std::move(bytes);
 		Disassemble(m_AsmBytes.data(), m_AsmBytes.size());
+		AddRecentFile(path);
 		return true;
 	}
 
@@ -312,7 +344,23 @@ bool CMainFrame::OpenFile(PCWSTR path) {
 	m_AsmSource.SetSavePoint();
 	m_FileName = path;
 	UpdateTitle();
+	AddRecentFile(path);
 	return true;
+}
+
+LRESULT CMainFrame::OnRecentFile(WORD, WORD wID, HWND, BOOL&) {
+	auto index = wID - ATL_IDS_MRU_FILE;
+	if (index >= m_RecentFiles.Files().size())
+		return 0;
+
+	auto path = m_RecentFiles.Files()[index];
+	if (!OpenFile(path.c_str()) && ::GetFileAttributes(path.c_str()) == INVALID_FILE_ATTRIBUTES) {
+		// gone: not offered again
+		m_RecentFiles.RemoveFile(path);
+		AppSettings::Get().RecentFiles(m_RecentFiles.Files());
+		UpdateRecentFilesMenu();
+	}
+	return 0;
 }
 
 void CMainFrame::CreateToolBar() {
@@ -429,6 +477,8 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	CMenuHandle hMenu = GetMenu();
 	InitMenu(hMenu);
 	UIAddMenu(hMenu);
+	m_RecentFiles.Set(settings.RecentFiles());
+	UpdateRecentFilesMenu();
 
 	// (never implemented)
 	UIEnable(ID_EDIT_FIND, false);
