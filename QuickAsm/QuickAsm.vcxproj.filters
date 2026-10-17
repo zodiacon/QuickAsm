@@ -141,9 +141,6 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="App.ico">
-      <Filter>Resource Files\Icons</Filter>
-    </Image>
     <Image Include="Icons\8.ico">
       <Filter>Resource Files\Icons</Filter>
     </Image>

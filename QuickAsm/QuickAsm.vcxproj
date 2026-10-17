@@ -193,7 +193,6 @@
     <ResourceCompile Include="QuickAsm.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="App.ico" />
     <Image Include="Icons\16bit.ico" />
     <Image Include="Icons\32bit.ico" />
     <Image Include="Icons\64bit.ico" />

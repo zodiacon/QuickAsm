@@ -5,8 +5,6 @@ VisualStudioVersion = 18.8.12021.73 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "QuickAsm", "QuickAsm\QuickAsm.vcxproj", "{08556E30-A5CA-4F40-BB93-D902D373C5F4}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HexView", "HexView\HexView.vcxproj", "{3FBA3178-4AE6-4103-9EB2-542901D978B7}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "x64Types", "x64Types\x64Types.vcxproj", "{88D28E0C-DE0F-462E-8E6F-78A81FF461F3}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WTLHelper", "WTLHelper\WTLHelper\WTLHelper.vcxproj", "{AE53419F-A769-4548-8E15-E311904DF7DF}"
@@ -26,12 +24,6 @@ Global
 		{08556E30-A5CA-4F40-BB93-D902D373C5F4}.Release|x64.Build.0 = Release|x64
 		{08556E30-A5CA-4F40-BB93-D902D373C5F4}.ReleaseSigned|x64.ActiveCfg = ReleaseSigned|x64
 		{08556E30-A5CA-4F40-BB93-D902D373C5F4}.ReleaseSigned|x64.Build.0 = ReleaseSigned|x64
-		{3FBA3178-4AE6-4103-9EB2-542901D978B7}.Debug|x64.ActiveCfg = Debug|x64
-		{3FBA3178-4AE6-4103-9EB2-542901D978B7}.Debug|x64.Build.0 = Debug|x64
-		{3FBA3178-4AE6-4103-9EB2-542901D978B7}.Release|x64.ActiveCfg = Release|x64
-		{3FBA3178-4AE6-4103-9EB2-542901D978B7}.Release|x64.Build.0 = Release|x64
-		{3FBA3178-4AE6-4103-9EB2-542901D978B7}.ReleaseSigned|x64.ActiveCfg = ReleaseSigned|x64
-		{3FBA3178-4AE6-4103-9EB2-542901D978B7}.ReleaseSigned|x64.Build.0 = ReleaseSigned|x64
 		{88D28E0C-DE0F-462E-8E6F-78A81FF461F3}.Debug|x64.ActiveCfg = Debug|x64
 		{88D28E0C-DE0F-462E-8E6F-78A81FF461F3}.Debug|x64.Build.0 = Debug|x64
 		{88D28E0C-DE0F-462E-8E6F-78A81FF461F3}.Release|x64.ActiveCfg = Release|x64

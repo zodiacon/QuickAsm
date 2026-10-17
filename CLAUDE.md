@@ -1,0 +1,27 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Overview
+
+QuickAsm is a Windows-only WTL GUI app (C++20, MSVC toolset v145 / VS 2026, x64 only) for writing x86/x64 assembly, assembling it (NASM or Keystone), disassembling the output (Capstone), and running it in an emulator (Unicorn) with stepping, breakpoints, and register and memory views. There are no tests and no lint setup.
+
+## Building
+
+- Solution: `QuickAsm.sln`, configurations `Debug`, `Release`, `ReleaseSigned` (x64). Output goes to `x64\<Config>\`.
+- Command line: `MSBuild.exe QuickAsm.sln /p:Configuration=Release /p:Platform=x64 /m` (MSBuild is under the VS install, e.g. `C:\Program Files\Microsoft Visual Studio\18\Enterprise\MSBuild\Current\Bin\amd64\`).
+- `WTLHelper` is a git submodule (`git submodule update --init`). Its `WTLHelper` and `HexControl` projects are part of the solution; include paths are `..\WTLHelper\WTLHelper;..\WTLHelper\WTL;..\WTLHelper\HexControl`. Don't change files in the submodule as part of QuickAsm work.
+- Everything else comes from vcpkg through MSBuild integration (no manifest): unicorn, capstone, keystone, scintilla, lexilla, wil, detours (WTLHelper needs the last two), `x64-windows-static` triplet, static CRT. `VcpkgAutoLink` links every installed lib, which is harmless. `/ignore:4099` silences the missing Lexilla PDBs.
+- The NASM backend runs `nasm.exe` from the executable's directory; NASM is the default assembler, so it fails without it.
+- `QuickAsm.rc` is UTF-16 LE: edit it as such (Python `encode('utf-16')`), not with tools that assume UTF-8.
+- `ReleaseSigned` runs `signtool` after the build.
+
+## Architecture (QuickAsm project)
+
+- `QuickAsm.cpp`: `_tWinMain` loads `AppSettings` (WTLHelper `Settings`, registry `HKCU\SOFTWARE\ScorpioSoftware\QuickAsm`), registers Scintilla, calls `WTLHelper::InitDarkMode`, opens a file given on the command line.
+- `CMainFrame` (`MainFrm.*`) is the hub: a `CCustomSplitterWindow` with the source `CAsmEditor` on the left and, on the right, a horizontal splitter with the read-only disassembly `CAsmEditor` above a `CNativeCustomTabView` (Registers, Memory, Breakpoints placeholder). The toolbar holds the assembler combo and address edit as child controls over toolbar separators (rebar band titles aren't drawn by the dark-mode rebar painting). Menu commands, accelerators and icons are resources; UI enabling goes through `CAutoUpdateUI` in `OnIdle`. Edit commands are routed to the focused editor or the hex control.
+- `MainFrmEmulator.cpp`: the emulator control. Unicorn runs on a thread-pool work item; one code hook per emulator setup (`InitEmulator`) pauses by posting `WM_EMULATOR_PAUSED` and blocking on continue/stop events, and the run ends with `WM_EMULATOR_DONE`. States: Idle / Running / Paused. Breakpoints are a mutex-guarded set of addresses (toggled from the UI while running); `m_AddressToLine` maps addresses to disassembly lines. The UI must not call Unicorn while Running (it isn't thread-safe): `CRegistersView::SetLive(false)` blanks values then. Emulated memory is the 64 KB host buffer `m_Memory`, mapped into Unicorn, with the stack pointer at its top.
+- Engine wrappers (no UI dependencies): `AssemblerBase` (abstract; `KeystoneAssembler`, `NasmAssembler` which spawns nasm), `CapstoneEngine`, `UnicornEngine` (its enums mirror unicorn's constants, so `x86Register` values go straight to `uc_reg_read/write`). `RegisterInfo.cpp` lists the registers shown; `Helpers` formats flags/CR0. `x64Types` provides only the `x64Types.h` header used by `Helpers.cpp`.
+- Views: `CAsmEditor` (Scintilla via TotalPE's `ScintillaCtrl.h`, Lexilla `asm` lexer, breakpoint/current-line markers), `CRegistersView` (WTLHelper `CVirtualListView`), `CMemoryView` (WTLHelper `CHexControl` over `CFixedMemoryBuffer`: overwrite only, Insert key blocked; the control is read-only by default).
+- Theming: `CMainFrame::ApplyTheme` switches the WTLHelper mode (falling back to `ApplyMode` when unchanged, as at startup — posted from `OnCreate` because the dark-mode hook themes the frame after `WM_CREATE`), redraws menu bitmaps, and calls each view's `ApplyTheme`. Scintilla and the hex control need `SetWindowTheme` for their scroll bars and explicit colors; they don't follow the dark-mode hook by themselves. `WM_UPDATE_DARKMODE` (`Interfaces.h`) is broadcast to descendants.
+- Reference projects using the same stack: TotalPE (`c:\dev\totalpe2\totalpe`) and AstroStudio (`c:\dev\astrostudio\astrostudio`).
