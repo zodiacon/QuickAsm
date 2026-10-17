@@ -84,6 +84,43 @@ static const char* KeyWords_ASM[] = {
 	"ucomisd ucomiss unpckhpd unpckhps unpcklpd unpcklps xorpd xorps",
 };
 
+namespace {
+	// what a word to complete is made of (directives start with % or .)
+	bool IsWordChar(char ch) {
+		return ::isalnum((unsigned char)ch) || ch == '_' || ch == '.' || ch == '%' || ch == '@' || ch == '$' || ch == '?';
+	}
+
+	bool StartsWithNoCase(std::string_view text, std::string_view prefix) {
+		return text.size() >= prefix.size() &&
+			std::equal(prefix.begin(), prefix.end(), text.begin(), [](char a, char b) { return ::tolower((unsigned char)a) == ::tolower((unsigned char)b); });
+	}
+
+	bool LessNoCase(std::string const& a, std::string const& b) {
+		return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(),
+			[](char x, char y) { return ::tolower((unsigned char)x) < ::tolower((unsigned char)y); });
+	}
+
+	// the words of the lexer's lists that can be completed (not the directive operands, mostly MASM's)
+	std::vector<std::string> const& CompletionWords() {
+		static const std::vector<std::string> words = [] {
+			std::vector<std::string> words{ "byte", "word", "dword", "qword", "tword", "rel" };
+			for (int i : { 0, 1, 2, 3, 5 }) {
+				std::string_view list(KeyWords_ASM[i]);
+				while (!list.empty()) {
+					auto end = list.find(' ');
+					if (end > 0)
+						words.emplace_back(list.substr(0, end));
+					list.remove_prefix(end == std::string_view::npos ? list.size() : end + 1);
+				}
+			}
+			std::ranges::sort(words);
+			words.erase(std::unique(words.begin(), words.end()), words.end());
+			return words;
+			}();
+		return words;
+	}
+}
+
 HWND CAsmEditor::Create(HWND hParent, UINT id, bool readOnly) {
 	auto hWnd = CScintillaCtrl::Create(hParent, rcDefault, nullptr, WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS, 0, id);
 	if (!hWnd)
@@ -106,6 +143,10 @@ HWND CAsmEditor::Create(HWND hParent, UINT id, bool readOnly) {
 	MarkerDefine(DisabledConditionalBreakpointMarker, Scintilla::MarkerSymbol::CirclePlus);
 	Execute(SCI_INDICSETSTYLE, CurrentLineIndicator, INDIC_FULLBOX);
 	Execute(SCI_INDICSETSTYLE, ErrorIndicator, INDIC_SQUIGGLEPIXMAP);
+	Execute(SCI_AUTOCSETIGNORECASE, TRUE);
+	Execute(SCI_AUTOCSETCASEINSENSITIVEBEHAVIOUR, SC_CASEINSENSITIVEBEHAVIOUR_IGNORECASE);
+	Execute(SCI_AUTOCSETORDER, SC_ORDER_PERFORMSORT);
+	Execute(SCI_AUTOCSETMAXHEIGHT, 12);
 
 	SetLexer(CreateLexer("asm"));
 	for (int i = 0; i < _countof(KeyWords_ASM); i++)
@@ -122,8 +163,8 @@ void CAsmEditor::ApplyTheme() {
 	::SetWindowTheme(m_hWnd, dark ? L"DarkMode_Explorer" : L"Explorer", nullptr);
 
 	StyleResetDefault();
-	StyleSetFont(STYLE_DEFAULT, "Consolas");
-	StyleSetSize(STYLE_DEFAULT, 12);
+	StyleSetFont(STYLE_DEFAULT, m_FontFace.c_str());
+	StyleSetSize(STYLE_DEFAULT, m_FontSize);
 	StyleSetFore(STYLE_DEFAULT, ::GetSysColor(COLOR_WINDOWTEXT));
 	StyleSetBack(STYLE_DEFAULT, ::GetSysColor(COLOR_WINDOW));
 	StyleClearAll();
@@ -131,6 +172,9 @@ void CAsmEditor::ApplyTheme() {
 	StyleSetFore(STYLE_LINENUMBER, dark ? RGB(160, 160, 160) : RGB(96, 96, 96));
 	StyleSetBack(STYLE_LINENUMBER, ::GetSysColor(COLOR_3DFACE));
 	Execute(SCI_SETMARGINBACKN, 1, ::GetSysColor(COLOR_3DFACE));
+	// (the margins grow with the font)
+	SetMarginWidth(0, (int)Execute(SCI_TEXTWIDTH, STYLE_LINENUMBER, (LPARAM)"_9999"));
+	SetMarginWidth(1, std::max(20, (int)Execute(SCI_TEXTHEIGHT, 0)));
 
 	StyleSetFore(SCE_ASM_DIRECTIVE, dark ? RGB(255, 165, 0) : RGB(165, 42, 42));
 	StyleSetFore(SCE_ASM_NUMBER, dark ? RGB(0, 255, 255) : RGB(128, 0, 128));
@@ -144,6 +188,11 @@ void CAsmEditor::ApplyTheme() {
 
 	Execute(SCI_SETELEMENTCOLOUR, SC_ELEMENT_CARET, ::GetSysColor(COLOR_WINDOWTEXT) | 0xFF000000);
 	Execute(SCI_SETELEMENTCOLOUR, SC_ELEMENT_SELECTION_BACK, (dark ? RGB(38, 79, 120) : RGB(173, 214, 255)) | 0xFF000000);
+	// the autocompletion list
+	Execute(SCI_SETELEMENTCOLOUR, SC_ELEMENT_LIST, ::GetSysColor(COLOR_WINDOWTEXT) | 0xFF000000);
+	Execute(SCI_SETELEMENTCOLOUR, SC_ELEMENT_LIST_BACK, (dark ? RGB(37, 37, 38) : ::GetSysColor(COLOR_WINDOW)) | 0xFF000000);
+	Execute(SCI_SETELEMENTCOLOUR, SC_ELEMENT_LIST_SELECTED, (dark ? RGB(255, 255, 255) : ::GetSysColor(COLOR_HIGHLIGHTTEXT)) | 0xFF000000);
+	Execute(SCI_SETELEMENTCOLOUR, SC_ELEMENT_LIST_SELECTED_BACK, (dark ? RGB(38, 79, 120) : ::GetSysColor(COLOR_HIGHLIGHT)) | 0xFF000000);
 
 	auto bpColor = dark ? RGB(220, 40, 40) : RGB(128, 0, 0);
 	MarkerSetBack(BreakpointMarker, bpColor);
@@ -161,6 +210,89 @@ void CAsmEditor::ApplyTheme() {
 	Execute(SCI_INDICSETFORE, CurrentLineIndicator, dark ? RGB(160, 160, 0) : RGB(255, 255, 0));
 	Execute(SCI_INDICSETALPHA, CurrentLineIndicator, dark ? 80 : 100);
 	Execute(SCI_INDICSETFORE, ErrorIndicator, dark ? RGB(255, 80, 80) : RGB(220, 0, 0));
+}
+
+void CAsmEditor::SetEditorFont(std::string const& face, int sizePoints) {
+	m_FontFace = face;
+	m_FontSize = sizePoints;
+	ApplyTheme();
+}
+
+std::vector<std::string> CAsmEditor::GetLabels() const {
+	std::vector<std::string> labels;
+	auto text = GetAllText();
+	std::string_view rest(text);
+	while (!rest.empty()) {
+		auto end = rest.find('\n');
+		auto line = rest.substr(0, end);
+		rest.remove_prefix(end == std::string_view::npos ? rest.size() : end + 1);
+
+		size_t i = 0;
+		while (i < line.size() && (line[i] == ' ' || line[i] == '\t'))
+			i++;
+		auto start = i;
+		while (i < line.size() && IsWordChar(line[i]))
+			i++;
+		if (i > start && i < line.size() && line[i] == ':' && !::isdigit((unsigned char)line[start]))
+			labels.emplace_back(line.substr(start, i - start));
+	}
+	return labels;
+}
+
+void CAsmEditor::AutoComplete(bool explicitRequest) {
+	if (Execute(SCI_AUTOCACTIVE) && !explicitRequest)
+		return;
+
+	auto pos = GetCurrentPos();
+	auto line = LineFromPosition(pos);
+	auto lineStart = PositionFromLine(line);
+	auto before = GetLine(line).substr(0, pos - lineStart);
+	auto start = before.size();
+	while (start > 0 && IsWordChar(before[start - 1]))
+		start--;
+	auto prefix = before.substr(start);
+	if (!prefix.empty() && ::isdigit((unsigned char)prefix[0]))
+		return;
+	if (!explicitRequest && prefix.size() < 2)
+		return;
+	// (not in a comment, outside quotes)
+	char quote = 0;
+	for (size_t i = 0; i < start; i++) {
+		auto ch = before[i];
+		if (quote)
+			quote = ch == quote ? 0 : quote;
+		else if (ch == '\'' || ch == '"' || ch == '`')
+			quote = ch;
+		else if (ch == ';')
+			return;
+	}
+	if (quote)
+		return;
+
+	std::vector<std::string> candidates;
+	for (auto& word : CompletionWords())
+		if (StartsWithNoCase(word, prefix))
+			candidates.push_back(word);
+	for (auto& label : GetLabels())
+		if (StartsWithNoCase(label, prefix) && label != prefix)
+			candidates.push_back(std::move(label));
+	if (candidates.empty() || (!explicitRequest && candidates.size() == 1 && candidates[0].size() == prefix.size()))
+		return;
+
+	// typed in capitals: the words too (not the labels, which are as defined)
+	bool upper = std::ranges::any_of(prefix, [](char ch) { return ::isupper((unsigned char)ch); }) &&
+		!std::ranges::any_of(prefix, [](char ch) { return ::islower((unsigned char)ch); });
+	std::ranges::sort(candidates, LessNoCase);
+	candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
+	std::string list;
+	for (auto& word : candidates) {
+		if (!list.empty())
+			list += ' ';
+		if (upper && std::ranges::binary_search(CompletionWords(), word))
+			std::ranges::transform(word, word.begin(), [](char ch) { return (char)::toupper((unsigned char)ch); });
+		list += word;
+	}
+	Execute(SCI_AUTOCSHOW, prefix.size(), (LPARAM)list.c_str());
 }
 
 void CAsmEditor::SetBreakpointMarker(int line, bool exists, bool enabled, bool conditional) {

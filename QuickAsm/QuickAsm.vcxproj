@@ -156,6 +156,7 @@
     <ClInclude Include="BreakpointDlg.h" />
     <ClInclude Include="Expression.h" />
     <ClInclude Include="InPlaceEdit.h" />
+    <ClInclude Include="Templates.h" />
     <ClInclude Include="MemoryView.h" />
     <ClInclude Include="RegistersView.h" />
     <ClInclude Include="ScintillaCtrl.h" />
@@ -213,6 +214,7 @@
     <Image Include="Icons\binary.ico" />
     <Image Include="Icons\stack.ico" />
     <Image Include="Icons\break.ico" />
+    <Image Include="Icons\file-new.ico" />
     <Image Include="Icons\breakpoint.ico" />
     <Image Include="Icons\build.ico" />
     <Image Include="Icons\copy.ico" />

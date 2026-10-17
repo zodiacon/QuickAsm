@@ -66,6 +66,9 @@
     <ClInclude Include="InPlaceEdit.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Templates.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="MemoryView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -202,6 +205,9 @@
       <Filter>Resource Files\Icons</Filter>
     </Image>
     <Image Include="Icons\break.ico">
+      <Filter>Resource Files\Icons</Filter>
+    </Image>
+    <Image Include="Icons\file-new.ico">
       <Filter>Resource Files\Icons</Filter>
     </Image>
     <Image Include="Icons\copy.ico">

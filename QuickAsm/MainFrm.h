@@ -54,6 +54,7 @@ public:
 		NOTIFY_HANDLER(IDC_ASM_SOURCE, SCN_SAVEPOINTLEFT, OnSavePointChanged)
 		NOTIFY_HANDLER(IDC_DISASSEMBLY, SCN_MARGINCLICK, OnDisassemblyMarginClick)
 		NOTIFY_HANDLER(IDC_ASM_SOURCE, SCN_MARGINCLICK, OnSourceMarginClick)
+		NOTIFY_HANDLER(IDC_ASM_SOURCE, SCN_CHARADDED, OnSourceCharAdded)
 		MESSAGE_HANDLER(CFindReplaceDialog::GetFindReplaceMsg(), OnFindReplace)
 		COMMAND_ID_HANDLER(ID_EDIT_FIND, OnEditFind)
 		COMMAND_ID_HANDLER(ID_EDIT_REPLACE, OnEditFind)
@@ -65,6 +66,8 @@ public:
 		COMMAND_HANDLER(IDC_ASSEMBLER, CBN_SELCHANGE, OnAssemblerSelected)
 		COMMAND_ID_HANDLER(ID_APP_EXIT, OnFileExit)
 		COMMAND_ID_HANDLER(ID_APP_ABOUT, OnAppAbout)
+		COMMAND_ID_HANDLER(ID_FILE_NEW, OnFileNew)
+		COMMAND_RANGE_HANDLER(ID_FILE_NEW16BIT, ID_FILE_NEW64BIT, OnFileNewFromTemplate)
 		COMMAND_ID_HANDLER(ID_FILE_OPEN, OnFileOpen)
 		COMMAND_ID_HANDLER(ID_FILE_SAVE, OnFileSave)
 		COMMAND_ID_HANDLER(ID_FILE_SAVE_AS, OnFileSaveAs)
@@ -77,6 +80,9 @@ public:
 		COMMAND_ID_HANDLER(ID_EDIT_PASTE, OnEditCommand)
 		COMMAND_ID_HANDLER(ID_EDIT_CLEAR, OnEditCommand)
 		COMMAND_ID_HANDLER(ID_VIEW_STATUS_BAR, OnViewStatusBar)
+		COMMAND_ID_HANDLER(ID_EDIT_COMPLETEWORD, OnEditCompleteWord)
+		COMMAND_ID_HANDLER(ID_OPTIONS_AUTOCOMPLETE, OnOptionsAutoComplete)
+		COMMAND_ID_HANDLER(ID_OPTIONS_FONT, OnOptionsFont)
 		COMMAND_ID_HANDLER(ID_ASM_ASSEMBLE, OnAssemble)
 		COMMAND_RANGE_HANDLER(ID_ASSEMBLER_KEYSTONE, ID_ASSEMBLER_NASM, OnAssembler)
 		COMMAND_ID_HANDLER(ID_ASM_RUN, OnRun)
@@ -128,6 +134,10 @@ private:
 	CAsmEditor* GetFocusedEditor();
 	// false if the user canceled
 	bool SaveChangesIfNeeded();
+	// the source becomes this text (the changes saved first if the user wants); false if the user canceled
+	bool NewSource(const char* text);
+	// the editors' font from the settings
+	void ApplyEditorFont();
 	bool SaveSource(PCWSTR path);
 	void AddRecentFile(PCWSTR path);
 	void UpdateRecentFilesMenu();
@@ -210,6 +220,8 @@ private:
 	LRESULT OnSavePointChanged(int /*idCtrl*/, LPNMHDR /*pnmh*/, BOOL& /*bHandled*/);
 	LRESULT OnFileExit(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnAppAbout(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnFileNew(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnFileNewFromTemplate(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnFileOpen(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnFileSave(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnFileSaveAs(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
@@ -217,6 +229,10 @@ private:
 	LRESULT OnRecentFile(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnEditCommand(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnViewStatusBar(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnEditCompleteWord(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnOptionsAutoComplete(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnOptionsFont(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnSourceCharAdded(int /*idCtrl*/, LPNMHDR pnmh, BOOL& /*bHandled*/);
 	LRESULT OnAssemble(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnAssembler(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnAssemblerSelected(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);

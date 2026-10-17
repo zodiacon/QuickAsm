@@ -11,6 +11,9 @@ public:
 		SETTING(Assembler, 1, SettingType::Int32);	// index: Keystone, NASM
 		SETTING(AsmMode, 1, SettingType::Int32);	// 16, 32 or 64 bit
 		SETTING_STRING(Address, L"0x1000");
+		SETTING_STRING(FontFace, L"Consolas");	// the editors'
+		SETTING(FontSize, 12, SettingType::Int32);	// points
+		SETTING(AutoComplete, 1, SettingType::Bool);
 	END_SETTINGS
 
 	DEF_SETTING(Theme, int)
@@ -18,6 +21,9 @@ public:
 	DEF_SETTING(Assembler, int)
 	DEF_SETTING(AsmMode, int)
 	DEF_SETTING_STRING(Address)
+	DEF_SETTING_STRING(FontFace)
+	DEF_SETTING(FontSize, int)
+	DEF_SETTING(AutoComplete, bool)
 	DEF_SETTING_MULTI(RecentFiles)		// the last first
 
 	DarkModeKind ThemeKind() const {

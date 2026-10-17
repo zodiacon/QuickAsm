@@ -16,8 +16,13 @@ public:
 	};
 
 	HWND Create(HWND hParent, UINT id, bool readOnly = false);
-	// the colors of the current theme (light or dark)
+	// the colors of the current theme (light or dark), and the font
 	void ApplyTheme();
+	// the font of the text (applied with the theme)
+	void SetEditorFont(std::string const& face, int sizePoints);
+	// the instructions, registers, directives and the source's labels that start with the word at the caret;
+	// typing: only after two characters of a word (outside comments), explicit: also for a shorter (or no) word
+	void AutoComplete(bool explicitRequest);
 	// the breakpoint marker of a line: none, enabled or disabled; with a condition (or a hit count) or not
 	void SetBreakpointMarker(int line, bool exists, bool enabled = true, bool conditional = false);
 	void DeleteBreakpointMarkers();
@@ -33,6 +38,8 @@ public:
 
 private:
 	void SetSearchFlags(bool matchCase, bool wholeWord);
+	// the labels defined in the text ("name:" at a line's start)
+	std::vector<std::string> GetLabels() const;
 	Sci_Position SearchInRange(std::string const& text, Sci_Position from, Sci_Position to);
 
 public:
@@ -41,4 +48,6 @@ public:
 
 private:
 	int m_CurrentLine{ -1 };
+	std::string m_FontFace{ "Consolas" };
+	int m_FontSize{ 12 };
 };

@@ -6,6 +6,7 @@
 #include "KeystoneAssembler.h"
 #include "NasmAssembler.h"
 #include "AboutDlg.h"
+#include "Templates.h"
 #include <WTLHelper.h>
 #include <ToolbarHelper.h>
 #include <fstream>
@@ -84,6 +85,7 @@ BOOL CMainFrame::OnIdle() {
 
 void CMainFrame::InitMenu(HMENU hMenu) {
 	MenuItemData commands[] {
+		{ ID_FILE_NEW, IDI_FILENEW },
 		{ ID_FILE_OPEN, IDI_OPEN },
 		{ ID_FILE_SAVE, IDI_SAVE },
 		{ ID_FILE_SAVE_AS, IDI_SAVEAS },
@@ -132,6 +134,7 @@ void CMainFrame::UpdateUI() {
 		UISetCheck(ID_MODE_16BIT + i, i == (int)m_AsmMode);
 	UISetRadioMenuItem(ID_ASSEMBLER_KEYSTONE + m_AssemblerIndex, ID_ASSEMBLER_KEYSTONE, ID_ASSEMBLER_NASM);
 	UISetCheck(ID_VIEW_STATUS_BAR, IsStatusBarVisible());
+	UISetCheck(ID_OPTIONS_AUTOCOMPLETE, settings.AutoComplete());
 }
 
 void CMainFrame::UpdateTitle() {
@@ -192,11 +195,17 @@ void CMainFrame::AddRecentFile(PCWSTR path) {
 }
 
 void CMainFrame::UpdateRecentFilesMenu() {
-	// the File menu's submenu
+	// the File menu's submenu that has the files (or the empty item): not New from Template's
 	auto fileMenu = CMenuHandle(GetMenu()).GetSubMenu(0);
 	CMenuHandle menu;
-	for (int i = 0; i < fileMenu.GetMenuItemCount() && !menu; i++)
-		menu = fileMenu.GetSubMenu(i);
+	for (int i = 0; i < fileMenu.GetMenuItemCount() && !menu; i++) {
+		CMenuHandle sub = fileMenu.GetSubMenu(i);
+		if (!sub)
+			continue;
+		auto id = sub.GetMenuItemID(0);
+		if (id == ID_RECENTFILES_EMPTY || (id >= ATL_IDS_MRU_FILE && id < ATL_IDS_MRU_FILE + 16))
+			menu = sub;
+	}
 	ATLASSERT(menu);
 
 	while (menu.DeleteMenu(0, MF_BYPOSITION))
@@ -549,6 +558,7 @@ LRESULT CMainFrame::OnRecentFile(WORD, WORD wID, HWND, BOOL&) {
 
 void CMainFrame::CreateToolBar() {
 	ToolBarButtonInfo const buttons[] = {
+		{ ID_FILE_NEW, IDI_FILENEW },
 		{ ID_FILE_OPEN, IDI_OPEN },
 		{ ID_FILE_SAVE, IDI_SAVE },
 		{ 0 },
@@ -663,6 +673,7 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	m_Splitter.SetSplitterPanes(m_AsmSource, m_RightSplitter);
 	m_Splitter.SetSplitterPosPct(40);
 	m_RightSplitter.SetSplitterPosPct(50);
+	ApplyEditorFont();
 
 	auto pLoop = _Module.GetMessageLoop();
 	ATLASSERT(pLoop);
@@ -771,21 +782,93 @@ LRESULT CMainFrame::OnFileSaveAs(WORD, WORD, HWND, BOOL&) {
 	return 0;
 }
 
-LRESULT CMainFrame::OnFileClose(WORD, WORD, HWND, BOOL&) {
+bool CMainFrame::NewSource(const char* text) {
 	if (!SaveChangesIfNeeded())
-		return 0;
+		return false;
 
-	m_AsmSource.ClearAll();
+	m_AsmSource.SetText(text);
+	m_AsmSource.Execute(SCI_CONVERTEOLS, m_AsmSource.Execute(SCI_GETEOLMODE));
 	m_AsmSource.EmptyUndoBuffer();
 	m_AsmSource.SetSavePoint();
+	m_AsmSource.MarkErrorLines({});
 	m_Disassembly.SetReadOnly(false);
 	m_Disassembly.ClearAll();
 	m_Disassembly.SetReadOnly(true);
 	m_AsmBytes.clear();
 	m_Instructions.clear();
+	m_AddressToSourceLine.clear();
+	m_AssembledSource.clear();
 	InitEmulator(nullptr, 0);
 	m_FileName.Empty();
 	UpdateTitle();
+	m_AsmSource.SetFocus();
+	return true;
+}
+
+LRESULT CMainFrame::OnFileClose(WORD, WORD, HWND, BOOL&) {
+	NewSource("");
+	return 0;
+}
+
+LRESULT CMainFrame::OnFileNew(WORD, WORD, HWND, BOOL&) {
+	NewSource("");
+	return 0;
+}
+
+LRESULT CMainFrame::OnFileNewFromTemplate(WORD, WORD wID, HWND, BOOL&) {
+	int index = wID - ID_FILE_NEW16BIT;
+	if (!NewSource(SourceTemplates[index]))
+		return 0;
+
+	// (the template is written for its mode)
+	m_AsmMode = static_cast<AsmMode>(index);
+	UpdateUI();
+	return 0;
+}
+
+void CMainFrame::ApplyEditorFont() {
+	auto& settings = AppSettings::Get();
+	std::string face(CW2A(settings.FontFace().c_str(), CP_UTF8));
+	auto size = std::clamp(settings.FontSize(), 6, 72);
+	m_AsmSource.SetEditorFont(face, size);
+	m_Disassembly.SetEditorFont(face, size);
+}
+
+LRESULT CMainFrame::OnOptionsFont(WORD, WORD, HWND, BOOL&) {
+	auto& settings = AppSettings::Get();
+	LOGFONT lf{};
+	::wcsncpy_s(lf.lfFaceName, settings.FontFace().c_str(), _TRUNCATE);
+	CClientDC dc(m_hWnd);
+	lf.lfHeight = -::MulDiv(settings.FontSize(), dc.GetDeviceCaps(LOGPIXELSY), 72);
+	// (fixed pitch: the columns of the code line up)
+	CFontDialog dlg(&lf, CF_SCREENFONTS | CF_FIXEDPITCHONLY | CF_NOVERTFONTS | CF_INITTOLOGFONTSTRUCT, nullptr, m_hWnd);
+	if (dlg.DoModal(m_hWnd) != IDOK)
+		return 0;
+
+	settings.FontFace(dlg.GetFaceName());
+	// (tenths of a point)
+	settings.FontSize(std::max(1, (dlg.GetSize() + 5) / 10));
+	ApplyEditorFont();
+	return 0;
+}
+
+LRESULT CMainFrame::OnOptionsAutoComplete(WORD, WORD, HWND, BOOL&) {
+	auto& settings = AppSettings::Get();
+	settings.AutoComplete(!settings.AutoComplete());
+	UpdateUI();
+	return 0;
+}
+
+LRESULT CMainFrame::OnEditCompleteWord(WORD, WORD, HWND, BOOL&) {
+	if (::GetFocus() == m_AsmSource)
+		m_AsmSource.AutoComplete(true);
+	return 0;
+}
+
+LRESULT CMainFrame::OnSourceCharAdded(int, LPNMHDR pnmh, BOOL&) {
+	auto scn = (SCNotification*)pnmh;
+	if (AppSettings::Get().AutoComplete() && scn->ch > ' ')
+		m_AsmSource.AutoComplete(false);
 	return 0;
 }
 

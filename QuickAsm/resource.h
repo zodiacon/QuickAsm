@@ -38,6 +38,7 @@
 #define IDI_STEPOUT                     228
 #define IDI_STACK                       229
 #define IDI_BREAK                       230
+#define IDI_FILENEW                     231
 
 #define IDC_ASM_SOURCE                  1001
 #define IDC_DISASSEMBLY                 1002
@@ -91,6 +92,12 @@
 #define ID_ASM_BPCONDITION              32846
 #define ID_BREAKPOINTS_CONDITION        32847
 #define ID_ASM_BREAK                    32848
+#define ID_FILE_NEW16BIT                32849
+#define ID_FILE_NEW32BIT                32850
+#define ID_FILE_NEW64BIT                32851
+#define ID_EDIT_COMPLETEWORD            32852
+#define ID_OPTIONS_FONT                 32853
+#define ID_OPTIONS_AUTOCOMPLETE         32854
 // the three themes must stay consecutive, in DarkModeKind order (Light, Dark, System)
 #define ID_THEME_LIGHT                  32820
 #define ID_THEME_DARK                   32821
@@ -101,7 +108,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        133
-#define _APS_NEXT_COMMAND_VALUE         32849
+#define _APS_NEXT_COMMAND_VALUE         32855
 #define _APS_NEXT_CONTROL_VALUE         1014
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
