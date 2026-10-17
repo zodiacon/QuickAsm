@@ -171,6 +171,7 @@ bool CMainFrame::SaveSource(PCWSTR path) {
 bool CMainFrame::DoSaveAs() {
 	CSimpleFileDialog dlg(FALSE, L"asm", m_FileName.IsEmpty() ? nullptr : (PCWSTR)m_FileName, OFN_OVERWRITEPROMPT | OFN_EXPLORER | OFN_ENABLESIZING,
 		L"Assembly files (*.asm)\0*.asm\0All files (*.*)\0*.*\0", m_hWnd);
+	SuspendResumeHook sr;
 	if (dlg.DoModal() != IDOK)
 		return false;
 	return SaveSource(dlg.m_szFileName);
