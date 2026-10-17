@@ -15,9 +15,11 @@ void CMainFrame::InitEmulator(uint8_t const* data, size_t size, bool keepBreakpo
 	m_Disassembly.SetCurrentLine(-1);
 	m_CurrentLine = -1;
 	if (!keepBreakpoints) {
-		std::lock_guard lock(m_BreakpointsLock);
-		m_Breakpoints.clear();
-		m_Disassembly.MarkerDeleteAll(CAsmEditor::BreakpointMarker);
+		{
+			std::lock_guard lock(m_BreakpointsLock);
+			m_Breakpoints.clear();
+		}
+		BreakpointsChanged();
 	}
 
 	m_AddressToLine.clear();
@@ -39,7 +41,7 @@ void CMainFrame::InitEmulator(uint8_t const* data, size_t size, bool keepBreakpo
 	}
 	m_RegistersView.SetLive(true);
 	m_RegistersView.Refresh();
-	m_MemoryView.Refresh();
+	m_MemoryView.Reset();
 	if (!m_Instructions.empty())
 		m_MemoryView.GotoAddress(m_Instructions[0].Address);
 }
@@ -100,7 +102,8 @@ void CMainFrame::OnCodeHook(uint64_t address) {
 	bool stop = m_StepInto || m_StopAt == address;
 	if (!stop) {
 		std::lock_guard lock(m_BreakpointsLock);
-		stop = m_Breakpoints.contains(address);
+		auto it = m_Breakpoints.find(address);
+		stop = it != m_Breakpoints.end() && it->second;
 	}
 	if (!stop)
 		return;
@@ -112,15 +115,19 @@ void CMainFrame::OnCodeHook(uint64_t address) {
 		m_Emulator.Stop();
 }
 
+void CMainFrame::RequestStop() {
+	// both, whatever the state seems to be: the emulator thread may be waiting in the code hook already,
+	// before its message (that it paused) arrives
+	m_StopRequested = true;
+	::SetEvent(m_StopEvent.get());
+	m_Emulator.Stop();
+}
+
 void CMainFrame::StopEmulator() {
 	if (m_EmulatorState == EmulatorState::Idle)
 		return;
 
-	m_StopRequested = true;
-	if (m_EmulatorState == EmulatorState::Paused)
-		::SetEvent(m_StopEvent.get());
-	else
-		m_Emulator.Stop();
+	RequestStop();
 	if (m_EmulatorWork)
 		::WaitForThreadpoolWorkCallbacks(m_EmulatorWork.get(), FALSE);
 	// (its message, posted when it ended, finds the emulator idle)
@@ -190,11 +197,7 @@ LRESULT CMainFrame::OnStop(WORD, WORD, HWND, BOOL&) {
 	if (!IsEmulatorBusy())
 		return 0;
 
-	m_StopRequested = true;
-	if (m_EmulatorState == EmulatorState::Paused)
-		::SetEvent(m_StopEvent.get());
-	else
-		m_Emulator.Stop();
+	RequestStop();
 	// (the emulator thread ends, and its message makes the state idle)
 	return 0;
 }
@@ -231,6 +234,10 @@ LRESULT CMainFrame::OnStepOver(WORD, WORD, HWND, BOOL&) {
 	return 0;
 }
 
+int CMainFrame::GetDisassemblyCaretLine() const {
+	return (int)m_Disassembly.LineFromPosition(m_Disassembly.GetCurrentPos());
+}
+
 void CMainFrame::ToggleBreakpoint(int line) {
 	if (line < 0 || line >= (int)m_Instructions.size()) {
 		::MessageBeep(MB_ICONWARNING);
@@ -238,23 +245,108 @@ void CMainFrame::ToggleBreakpoint(int line) {
 	}
 
 	auto address = m_Instructions[line].Address;
-	auto set = m_Disassembly.ToggleBreakpoint(line);
+	{
+		std::lock_guard lock(m_BreakpointsLock);
+		if (!m_Breakpoints.erase(address))
+			m_Breakpoints[address] = true;
+	}
+	BreakpointsChanged();
+}
+
+void CMainFrame::BreakpointsChanged() {
+	m_Disassembly.DeleteBreakpointMarkers();
+	{
+		std::lock_guard lock(m_BreakpointsLock);
+		for (auto& [address, enabled] : m_Breakpoints)
+			if (auto line = LineFromAddress(address); line >= 0)
+				m_Disassembly.SetBreakpointMarker(line, true, enabled);
+	}
+	m_BreakpointsView.Refresh();
+}
+
+std::vector<BreakpointInfo> CMainFrame::GetBreakpoints() const {
+	std::vector<BreakpointInfo> breakpoints;
 	std::lock_guard lock(m_BreakpointsLock);
-	if (set)
-		m_Breakpoints.insert(address);
-	else
+	for (auto& [address, enabled] : m_Breakpoints) {
+		auto line = LineFromAddress(address);
+		std::string text;
+		if (line >= 0) {
+			auto& insn = m_Instructions[line];
+			text = insn.Mnemonic + " " + insn.Operands;
+		}
+		breakpoints.push_back({ address, line, enabled, std::move(text) });
+	}
+	return breakpoints;
+}
+
+void CMainFrame::EnableBreakpoint(uint64_t address, bool enable) {
+	{
+		std::lock_guard lock(m_BreakpointsLock);
+		if (auto it = m_Breakpoints.find(address); it != m_Breakpoints.end())
+			it->second = enable;
+	}
+	BreakpointsChanged();
+}
+
+void CMainFrame::EnableAllBreakpoints(bool enable) {
+	{
+		std::lock_guard lock(m_BreakpointsLock);
+		for (auto& [address, enabled] : m_Breakpoints)
+			enabled = enable;
+	}
+	BreakpointsChanged();
+}
+
+void CMainFrame::DeleteBreakpoint(uint64_t address) {
+	{
+		std::lock_guard lock(m_BreakpointsLock);
 		m_Breakpoints.erase(address);
+	}
+	BreakpointsChanged();
+}
+
+void CMainFrame::DeleteAllBreakpoints() {
+	{
+		std::lock_guard lock(m_BreakpointsLock);
+		m_Breakpoints.clear();
+	}
+	BreakpointsChanged();
+}
+
+void CMainFrame::GoToBreakpoint(uint64_t address) {
+	if (auto line = LineFromAddress(address); line >= 0) {
+		m_Disassembly.GotoLine(line);
+		m_Disassembly.SetFocus();
+	}
 }
 
 LRESULT CMainFrame::OnToggleBreakpoint(WORD, WORD, HWND, BOOL&) {
-	ToggleBreakpoint((int)m_Disassembly.LineFromPosition(m_Disassembly.GetCurrentPos()));
+	ToggleBreakpoint(GetDisassemblyCaretLine());
+	return 0;
+}
+
+LRESULT CMainFrame::OnEnableBreakpoint(WORD, WORD, HWND, BOOL&) {
+	auto line = GetDisassemblyCaretLine();
+	if (line < 0 || line >= (int)m_Instructions.size())
+		return 0;
+
+	auto address = m_Instructions[line].Address;
+	bool enabled;
+	{
+		std::lock_guard lock(m_BreakpointsLock);
+		auto it = m_Breakpoints.find(address);
+		if (it == m_Breakpoints.end()) {
+			::MessageBeep(MB_ICONWARNING);
+			return 0;
+		}
+		enabled = it->second;
+	}
+	EnableBreakpoint(address, !enabled);
 	return 0;
 }
 
 LRESULT CMainFrame::OnDeleteAllBreakpoints(WORD, WORD, HWND, BOOL&) {
-	m_Disassembly.MarkerDeleteAll(CAsmEditor::BreakpointMarker);
-	std::lock_guard lock(m_BreakpointsLock);
-	m_Breakpoints.clear();
+	DeleteAllBreakpoints();
 	return 0;
 }
 

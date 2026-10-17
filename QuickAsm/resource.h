@@ -46,6 +46,7 @@
 #define IDC_VERSION                     1007
 #define IDC_COPYRIGHT                   1008
 #define IDC_LINK                        1009
+#define IDC_BREAKPOINTS                 1010
 
 #define ID_ASM_ASSEMBLE                 32800
 #define ID_ASM_RUN                      32801
@@ -55,6 +56,7 @@
 #define ID_ASM_STEPINTO                 32805
 #define ID_ASM_TOGGLEBP                 32806
 #define ID_ASM_DELETEALLBP              32807
+#define ID_ASM_ENABLEBP                 32808
 // the three modes must stay consecutive
 #define ID_MODE_16BIT                   32810
 #define ID_MODE_32BIT                   32811
@@ -73,6 +75,10 @@
 #define ID_MEMORY_2BYTES                32836
 #define ID_MEMORY_4BYTES                32837
 #define ID_MEMORY_8BYTES                32838
+#define ID_BREAKPOINTS_DELETE           32840
+#define ID_BREAKPOINTS_DELETEALL        32841
+#define ID_BREAKPOINTS_ENABLEALL        32842
+#define ID_BREAKPOINTS_DISABLEALL       32843
 // the three themes must stay consecutive, in DarkModeKind order (Light, Dark, System)
 #define ID_THEME_LIGHT                  32820
 #define ID_THEME_DARK                   32821
@@ -83,8 +89,8 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        132
-#define _APS_NEXT_COMMAND_VALUE         32840
-#define _APS_NEXT_CONTROL_VALUE         1010
+#define _APS_NEXT_COMMAND_VALUE         32844
+#define _APS_NEXT_CONTROL_VALUE         1011
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

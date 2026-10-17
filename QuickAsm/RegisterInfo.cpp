@@ -55,7 +55,7 @@ const std::vector<RegisterInfo> AllRegisters {
 	{ "ESI", 32,  x86Register::ESI, RegisterType::General | RegisterType::Bits64 | RegisterType::Bits32, x86Register::RSI, 0 },
 	{ "RSI", 64,  x86Register::RSI, RegisterType::General | RegisterType::Bits64 },
 
-	{ "DI", 16,   x86Register::DI, RegisterType::General | RegisterType::AllBits, x86Register::ESI, 0 },
+	{ "DI", 16,   x86Register::DI, RegisterType::General | RegisterType::AllBits, x86Register::EDI, 0 },
 	{ "EDI", 32,  x86Register::EDI, RegisterType::General | RegisterType::Bits64 | RegisterType::Bits32, x86Register::RDI, 0 },
 	{ "RDI", 64,  x86Register::RDI, RegisterType::General | RegisterType::Bits64 },
 

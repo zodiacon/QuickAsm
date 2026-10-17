@@ -152,6 +152,7 @@
     <ClInclude Include="AboutDlg.h" />
     <ClInclude Include="AppSettings.h" />
     <ClInclude Include="AsmEditor.h" />
+    <ClInclude Include="BreakpointsView.h" />
     <ClInclude Include="EditValueDlg.h" />
     <ClInclude Include="MemoryView.h" />
     <ClInclude Include="RegistersView.h" />
@@ -177,6 +178,7 @@
     <ClCompile Include="KeystoneAssembler.cpp" />
     <ClCompile Include="AboutDlg.cpp" />
     <ClCompile Include="AsmEditor.cpp" />
+    <ClCompile Include="BreakpointsView.cpp" />
     <ClCompile Include="MemoryView.cpp" />
     <ClCompile Include="RegistersView.cpp" />
     <ClCompile Include="MainFrm.cpp" />

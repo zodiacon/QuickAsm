@@ -7,10 +7,10 @@
 #include "UnicornEngine.h"
 #include "RegistersView.h"
 #include "MemoryView.h"
+#include "BreakpointsView.h"
 #include <CustomSplitterWindow.h>
 #include <NativeCustomTabView.h>
 #include <mutex>
-#include <unordered_set>
 
 class AssemblerBase;
 
@@ -18,7 +18,8 @@ class CMainFrame :
 	public CFrameWindowImpl<CMainFrame>,
 	public CAutoUpdateUI<CMainFrame>,
 	public CMessageFilter,
-	public CIdleHandler {
+	public CIdleHandler,
+	public IBreakpointsHost {
 public:
 	DECLARE_FRAME_WND_CLASS(L"QuickAsmMainWndClass", IDR_MAINFRAME)
 
@@ -29,6 +30,14 @@ public:
 	bool OpenFile(PCWSTR path);
 
 	BOOL PreTranslateMessage(MSG* pMsg) override;
+
+	// IBreakpointsHost
+	std::vector<BreakpointInfo> GetBreakpoints() const override;
+	void EnableBreakpoint(uint64_t address, bool enable) override;
+	void EnableAllBreakpoints(bool enable) override;
+	void DeleteBreakpoint(uint64_t address) override;
+	void DeleteAllBreakpoints() override;
+	void GoToBreakpoint(uint64_t address) override;
 	BOOL OnIdle() override;
 
 	BEGIN_MSG_MAP(CMainFrame)
@@ -64,6 +73,7 @@ public:
 		COMMAND_ID_HANDLER(ID_ASM_STEPINTO, OnStepInto)
 		COMMAND_ID_HANDLER(ID_ASM_STEPOVER, OnStepOver)
 		COMMAND_ID_HANDLER(ID_ASM_TOGGLEBP, OnToggleBreakpoint)
+		COMMAND_ID_HANDLER(ID_ASM_ENABLEBP, OnEnableBreakpoint)
 		COMMAND_ID_HANDLER(ID_ASM_DELETEALLBP, OnDeleteAllBreakpoints)
 		COMMAND_RANGE_HANDLER(ID_MODE_16BIT, ID_MODE_64BIT, OnAsmMode)
 		COMMAND_RANGE_HANDLER(ID_THEME_LIGHT, ID_THEME_SYSTEM, OnTheme)
@@ -97,6 +107,7 @@ private:
 	bool SaveSource(PCWSTR path);
 	bool DoSaveAs();
 	void Assemble();
+	void ShowWarnings(std::string const& warnings);
 	void Disassemble(uint8_t const* data, size_t size);
 	void CreateBottomPane();
 	void CreateToolBar();
@@ -110,6 +121,8 @@ private:
 	void Run(bool stepInto = false, uint64_t stopAt = 0);
 	// waits for the emulator thread to end
 	void StopEmulator();
+	// tells the emulator thread to end (without waiting)
+	void RequestStop();
 	void OnCodeHook(uint64_t address);
 	void ShowEmulatorState(int line);
 	int LineFromAddress(uint64_t address) const;
@@ -124,8 +137,12 @@ private:
 	LRESULT OnStepInto(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnStepOver(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnToggleBreakpoint(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnEnableBreakpoint(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnDeleteAllBreakpoints(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	void ToggleBreakpoint(int line);
+	// the disassembly's markers and the breakpoints view, after the breakpoints changed
+	void BreakpointsChanged();
+	int GetDisassemblyCaretLine() const;
 
 	LRESULT OnCreate(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnClose(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& bHandled);
@@ -157,7 +174,7 @@ private:
 	CRegistersView m_RegistersView{ m_Emulator };
 	std::vector<uint8_t> m_Memory;
 	CMemoryView m_MemoryView{ m_Memory };
-	CStatic m_BreakpointsPlaceholder;
+	CBreakpointsView m_BreakpointsView{ *this };
 	CComboBox m_AssemblerCombo;
 	CEdit m_AddressEdit;
 	CStatic m_AssemblerLabel, m_AddressLabel;
@@ -176,7 +193,7 @@ private:
 	wil::unique_threadpool_work m_EmulatorWork;
 	void* m_CodeHook{ nullptr };
 	wil::unique_event m_ContinueEvent{ wil::EventOptions::None }, m_StopEvent{ wil::EventOptions::None };
-	std::unordered_set<uint64_t> m_Breakpoints;
+	std::map<uint64_t, bool> m_Breakpoints;	// address -> enabled
 	mutable std::mutex m_BreakpointsLock;
 	std::atomic<bool> m_StepInto{ false };
 	std::atomic<uint64_t> m_StopAt{ 0 };	// a one-time stop (step over)

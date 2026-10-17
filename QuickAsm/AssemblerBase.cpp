@@ -20,14 +20,14 @@ AssemblerResults AssemblerBase::Assemble(std::string const& source) {
     }
 
     auto path = Helpers::GetTempFilePath(L"asm");
-    std::ofstream stm(path);
-
-    if (stm.good()) {
-        stm.write(source.c_str(), source.length());
-        stm.close();
-        return AssembleFile(path);
-    }
-    return results;
+    auto cleanup = wil::scope_exit([&] { ::DeleteFile(path.c_str()); });
+    // (binary: the source has its line breaks already)
+    std::ofstream stm(path, std::ios::binary | std::ios::trunc);
+    stm.write(source.c_str(), source.length());
+    stm.close();
+    if (!stm)
+        return results;
+    return AssembleFile(path);
 }
 
 void AssemblerBase::SetValue(std::string name, OptionValue value) {

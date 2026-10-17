@@ -34,6 +34,11 @@ void CMemoryView::Refresh() {
 	m_Hex.Refresh();
 }
 
+void CMemoryView::Reset() {
+	// (the modified bytes, the undo history and the selection go too)
+	m_Hex.SetBufferManager(&m_Buffer);
+}
+
 void CMemoryView::GotoAddress(uint64_t address) {
 	m_PendingAddress = (int64_t)address;
 	GotoPending();

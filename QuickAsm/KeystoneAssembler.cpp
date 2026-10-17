@@ -66,8 +66,10 @@ AssemblerResults KeystoneAssembler::Assemble(std::string const& source) {
 
     ks_engine* ks;
     results.Error = ks_open(KS_ARCH_X86, m_Mode, &ks);
-    if (results.Error != KS_ERR_OK)
+    if (results.Error != KS_ERR_OK) {
+        results.Output = ks_strerror((ks_err)results.Error);
         return results;
+    }
 
     uint8_t* encoding;
     size_t size;

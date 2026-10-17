@@ -37,72 +37,70 @@ AssemblerResults NasmAssembler::AssembleFile(std::wstring const& file) {
 		extraLines++;
 	}
 
+	// the files made here go when done (GetTempFileName creates its files, and has a limited number of names)
+	std::vector<std::wstring> tempFiles;
+	auto cleanup = wil::scope_exit([&] {
+		for (auto& path : tempFiles)
+			::DeleteFile(path.c_str());
+		});
+
 	auto srcFile = file;
 	if (!prefix.empty()) {
-		auto hFile = ::CreateFile(file.c_str(), GENERIC_READ, 0, nullptr, OPEN_EXISTING, 0, nullptr);
-		if (hFile != INVALID_HANDLE_VALUE) {
-			auto size = ::GetFileSize(hFile, nullptr);
-			std::vector<BYTE> buffer(size);
-			DWORD read;
-			::ReadFile(hFile, buffer.data(), (DWORD)buffer.size(), &read, nullptr);
-			auto tempSrc = Helpers::GetTempFilePath(L"src");
-			auto hSrc = ::CreateFile(tempSrc.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, nullptr);
-			if (hSrc != INVALID_HANDLE_VALUE) {
-				::WriteFile(hSrc, prefix.data(), (DWORD)prefix.length(), &read, nullptr);
-				::WriteFile(hSrc, buffer.data(), (DWORD)buffer.size(), &read, nullptr);
-				::CloseHandle(hSrc);
-				srcFile = tempSrc;
-			}
-			::CloseHandle(hFile);
-		}
+		auto source = Helpers::ReadFileContents(file.c_str());
+		auto tempSrc = Helpers::GetTempFilePath(L"src");
+		tempFiles.push_back(tempSrc);
+		std::ofstream stm(tempSrc, std::ios::binary | std::ios::trunc);
+		stm.write(prefix.data(), prefix.size());
+		stm.write((const char*)source.data(), source.size());
+		if (stm.good())
+			srcFile = tempSrc;
 	}
 
-	PROCESS_INFORMATION pi{};
-	STARTUPINFO si{ sizeof(si) };
 	auto tempOutput = Helpers::GetTempFilePath(L"log");
-	std::wstring objOutput = file.data();
-	objOutput = objOutput.substr(0, file.rfind(L'.')) + L".bin";
+	tempFiles.push_back(tempOutput);
+	auto objOutput = file.substr(0, file.rfind(L'.')) + L".bin";
+	tempFiles.push_back(objOutput);
 
 	// (quoted: the paths may have spaces)
 	auto fullcmdline = L"\"" + m_NasmPath + L"\" -Z \"" + tempOutput + L"\" -o \"" + objOutput + L"\" \"" + srcFile + L"\"";
+	PROCESS_INFORMATION pi{};
+	STARTUPINFO si{ sizeof(si) };
 	if (!::CreateProcess(nullptr, fullcmdline.data(), nullptr, nullptr, FALSE,
 		CREATE_NO_WINDOW, nullptr, m_NasmDir.c_str(), &si, &pi)) {
 		results.Error = ::GetLastError();
 		results.Output = "Failed to run nasm.exe";
 		return results;
 	}
-	{
-		::WaitForSingleObject(pi.hProcess, INFINITE);
-		std::ifstream stm(tempOutput);
-		if (stm.good()) {
-			char line[1024];
-			while(!stm.eof()) {
-				stm.getline(line, sizeof(line));
-				auto colon = strchr(line + 2, ':');
-				if (colon == nullptr)
-					break;
-				if (extraLines) {
-					//
-					// subtract line number to align with actual assembly text
-					//
-					auto colon2 = strchr(colon + 1, ':');
-					auto lineNum = atoi(colon + 1);
-					lineNum -= extraLines;
-					results.Output += std::to_string(lineNum) + ":" + (colon2 + 1);
-				}
-				else {
-					results.Output += colon + 1;
-				}
-				results.Output += '\n';
-			}
-		}
-	}
-	if (results.Output.empty())
-		results.OutputFile = objOutput;
-	else
-		results.Error = 1;
+	wil::unique_handle hProcess(pi.hProcess), hThread(pi.hThread);
+	::WaitForSingleObject(hProcess.get(), INFINITE);
+	DWORD exitCode = 1;
+	::GetExitCodeProcess(hProcess.get(), &exitCode);
 
-	::CloseHandle(pi.hProcess);
-	::CloseHandle(pi.hThread);
+	// the messages are "file:line: text" (the file may start with a drive letter); others are kept as they are
+	std::ifstream stm(tempOutput);
+	for (std::string line; std::getline(stm, line); ) {
+		if (line.empty())
+			continue;
+		auto colon = line.find(':', line.size() > 2 && line[1] == ':' ? 2 : 0);
+		auto colon2 = colon == std::string::npos ? colon : line.find(':', colon + 1);
+		auto number = colon2 == std::string::npos ? std::string() : line.substr(colon + 1, colon2 - colon - 1);
+		if (!number.empty() && std::ranges::all_of(number, [](char ch) { return ch >= '0' && ch <= '9'; })) {
+			// (the line numbers of the source, without the lines added to it)
+			results.Output += std::to_string(std::stoi(number) - extraLines) + ":" + line.substr(colon2 + 1);
+		}
+		else {
+			results.Output += line;
+		}
+		results.Output += '\n';
+	}
+
+	// warnings only (nasm succeeded): the output stays, as warnings
+	if (exitCode != 0) {
+		results.Error = 1;
+		if (results.Output.empty())
+			results.Output = "nasm.exe failed (exit code " + std::to_string(exitCode) + ")";
+		return results;
+	}
+	results.Bytes = Helpers::ReadFileContents(objOutput.c_str());
 	return results;
 }

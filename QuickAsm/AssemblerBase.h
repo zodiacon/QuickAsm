@@ -5,7 +5,7 @@
 struct AssemblerResults {
 	std::vector<uint8_t> Bytes;
 	std::wstring OutputFile;
-	std::string Output;
+	std::string Output;		// the errors; the warnings if it succeeded
 	size_t Instructions;
 	int Error{ 0 };
 };

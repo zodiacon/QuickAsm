@@ -8,13 +8,16 @@ public:
 	enum {
 		BreakpointMarker = 1,
 		CurrentLineMarker = 2,
+		DisabledBreakpointMarker = 3,
 		CurrentLineIndicator = 2,
 	};
 
 	HWND Create(HWND hParent, UINT id, bool readOnly = false);
 	// the colors of the current theme (light or dark)
 	void ApplyTheme();
-	bool ToggleBreakpoint(int line);
+	// the breakpoint marker of a line: none, enabled or disabled
+	void SetBreakpointMarker(int line, bool exists, bool enabled = true);
+	void DeleteBreakpointMarkers();
 	// the line where execution stopped (-1: none), made visible
 	void SetCurrentLine(int line);
 

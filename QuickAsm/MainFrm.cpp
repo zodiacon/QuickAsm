@@ -41,6 +41,7 @@ BOOL CMainFrame::OnIdle() {
 	UIEnable(ID_ASM_STEPINTO, haveCode && !running);
 	UIEnable(ID_ASM_STEPOVER, haveCode && !running);
 	UIEnable(ID_ASM_TOGGLEBP, haveCode);
+	UIEnable(ID_ASM_ENABLEBP, haveCode);
 	UIEnable(ID_ASM_DELETEALLBP, haveCode);
 	// the code's setup stays as it is while it runs
 	for (UINT id = ID_MODE_16BIT; id <= ID_MODE_64BIT; id++)
@@ -209,6 +210,7 @@ void CMainFrame::Assemble() {
 	assembler->SetValue("address", (int64_t)m_Address);
 
 	auto results = assembler->Assemble(m_AsmSource.GetAllText());
+	ShowWarnings(results.Error ? std::string() : results.Output);
 	if (results.Error) {
 		m_AsmBytes.clear();
 		m_Instructions.clear();
@@ -229,6 +231,31 @@ void CMainFrame::Assemble() {
 		m_AsmBytes.clear();
 	}
 	Disassemble(m_AsmBytes.data(), m_AsmBytes.size());
+}
+
+void CMainFrame::ShowWarnings(std::string const& warnings) {
+	// the first one, and how many more (in the status bar: the disassembly's lines are the instructions)
+	CString text;
+	int count = 0;
+	std::string first;
+	for (size_t start = 0, end; start < warnings.size(); start = end + 1) {
+		end = warnings.find('\n', start);
+		if (end == std::string::npos)
+			end = warnings.size();
+		if (end > start && count++ == 0)
+			first = warnings.substr(start, end - start);
+	}
+	if (count) {
+		// "<line>: warning: <text>" shown as "Warning, line <line>: <text>"
+		auto colon = first.find(": warning: ");
+		if (colon != std::string::npos && colon > 0 && std::ranges::all_of(first.substr(0, colon), [](char ch) { return ch >= '0' && ch <= '9'; }))
+			text = L"Warning, line " + CString(first.substr(0, colon).c_str()) + L": " + CString(first.substr(colon + 11).c_str());
+		else
+			text = L"Warning: " + CString(first.c_str());
+		if (count > 1)
+			text.AppendFormat(L" (+%d more)", count - 1);
+	}
+	m_StatusBar.SetText(2, text);
 }
 
 void CMainFrame::Disassemble(uint8_t const* data, size_t size) {
@@ -364,12 +391,11 @@ void CMainFrame::CreateBottomPane() {
 
 	m_RegistersView.Create(m_Tabs, rcDefault, nullptr, WS_CHILD | WS_CLIPCHILDREN);
 	m_MemoryView.Create(m_Tabs, rcDefault, nullptr, WS_CHILD | WS_CLIPCHILDREN);
-	// not ported yet
-	m_BreakpointsPlaceholder.Create(m_Tabs, rcDefault, L"Breakpoints: not ported yet", WS_CHILD | SS_CENTER | SS_CENTERIMAGE);
+	m_BreakpointsView.Create(m_Tabs, rcDefault, nullptr, WS_CHILD | WS_CLIPCHILDREN);
 
 	m_Tabs.AddPage(m_RegistersView, L"Registers", 0);
 	m_Tabs.AddPage(m_MemoryView, L"Memory", 1);
-	m_Tabs.AddPage(m_BreakpointsPlaceholder, L"Breakpoints", 2);
+	m_Tabs.AddPage(m_BreakpointsView, L"Breakpoints", 2);
 	m_Tabs.SetActivePage(0);
 }
 
@@ -428,6 +454,9 @@ LRESULT CMainFrame::OnClose(UINT, WPARAM, LPARAM, BOOL& bHandled) {
 }
 
 LRESULT CMainFrame::OnDestroy(UINT, WPARAM, LPARAM, BOOL& bHandled) {
+	// (not only closed: a thread waiting at a breakpoint would never end)
+	StopEmulator();
+
 	auto& settings = AppSettings::Get();
 	settings.SaveWindowPosition(m_hWnd, L"MainWindowPlacement");
 	settings.ViewStatusBar(IsStatusBarVisible());

@@ -43,6 +43,8 @@ public:
 	BOOL PreTranslateMessage(MSG* pMsg);
 	// the memory (after it may have changed)
 	void Refresh();
+	// the memory was set up again: what was changed before (and could be undone) is gone
+	void Reset();
 	void GotoAddress(uint64_t address);
 	// the colors of the current theme (light or dark)
 	void ApplyTheme();
