@@ -269,6 +269,7 @@ void CMainFrame::Assemble() {
 	m_AddressToSourceLine.clear();
 	if (results.Error) {
 		m_AsmBytes.clear();
+		m_CodeSize = 0;
 		m_Instructions.clear();
 		m_Disassembly.SetReadOnly(false);
 		m_Disassembly.SetText(results.Output.c_str());
@@ -282,6 +283,7 @@ void CMainFrame::Assemble() {
 		m_AsmBytes = Helpers::ReadFileContents(results.OutputFile.c_str());
 	else
 		m_AsmBytes = std::move(results.Bytes);
+	m_CodeSize = results.CodeSize;
 	if (!FitsInMemory(m_Address, m_AsmBytes.size())) {
 		AtlMessageBox(m_hWnd, L"The code doesn't fit in the emulator's memory (below the stack) at this address.", IDR_MAINFRAME, MB_ICONWARNING);
 		m_AsmBytes.clear();
@@ -404,7 +406,9 @@ void CMainFrame::Disassemble(uint8_t const* data, size_t size) {
 	InitEmulator(data, size);
 
 	CString status;
-	status.Format(L"%zu instructions, %zu bytes", m_Instructions.size(), size);
+	status.Format(L"%zu instructions, %zu bytes", m_Instructions.size(), GetCodeSize());
+	if (GetCodeSize() < size)
+		status.AppendFormat(L", %zu bytes of data", size - GetCodeSize());
 	m_StatusBar.SetText(0, status);
 }
 
@@ -415,8 +419,10 @@ void CMainFrame::DisassembleText(uint8_t const* data, size_t size) {
 		return;
 	cs.SetSyntax(settings.DisasmSyntax() == 1);
 
-	m_Instructions = cs.Disassemble(data, size, m_Address);
+	auto codeSize = std::min(GetCodeSize(), size);
+	m_Instructions = cs.Disassemble(data, codeSize, m_Address);
 	auto bytes = settings.DisasmBytes();
+	auto upper = settings.DisasmUpperCase();
 	CStringA text;
 	for (auto& insn : m_Instructions) {
 		auto mnemonicSize = insn.Mnemonic.size();
@@ -432,9 +438,27 @@ void CMainFrame::DisassembleText(uint8_t const* data, size_t size) {
 		text.TrimRight();
 		text += "\n";
 	}
+	// the data (after the code: not instructions), 16 bytes in a line, with their characters
+	if (codeSize < size)
+		text += "; data\n";
+	for (auto offset = codeSize; offset < size; offset += 16) {
+		auto count = std::min<size_t>(16, size - offset);
+		text.AppendFormat("0x%08X %-8s ", (DWORD)(m_Address + offset), upper ? "DB" : "db");
+		CStringA chars;
+		for (size_t i = 0; i < count; i++) {
+			auto b = data[offset + i];
+			text.AppendFormat(i ? " %02X" : "%02X", b);
+			chars += b >= 0x20 && b < 0x7F ? (char)b : '.';
+		}
+		text.AppendFormat("%*s ; %s\n", int(3 * (16 - count)), "", chars.GetString());
+	}
 	m_Disassembly.SetReadOnly(false);
 	m_Disassembly.SetText(text);
 	m_Disassembly.SetReadOnly(true);
+}
+
+size_t CMainFrame::GetCodeSize() const {
+	return m_CodeSize && m_CodeSize < m_AsmBytes.size() ? m_CodeSize : m_AsmBytes.size();
 }
 
 std::string CMainFrame::FormatInstruction(Instruction const& insn) const {
@@ -520,6 +544,7 @@ LRESULT CMainFrame::OnOptionsMemory(WORD, WORD, HWND, BOOL&) {
 	if (!m_AsmBytes.empty() && (m_Instructions.empty() || m_Instructions[0].Address != m_Address || !FitsInMemory(m_Address, m_AsmBytes.size()))) {
 		// the code was made for an address the memory doesn't have now
 		m_AsmBytes.clear();
+		m_CodeSize = 0;
 		m_Instructions.clear();
 		m_AddressToSourceLine.clear();
 		m_AssembledSource.clear();
@@ -548,6 +573,9 @@ bool CMainFrame::OpenFile(PCWSTR file) {
 		return false;
 	}
 
+	if (IsSessionFile(path))
+		return OpenSession(path);
+
 	auto bytes = Helpers::ReadFileContents(path);
 	if (CString(path).Right(4).CompareNoCase(L".asm") != 0) {
 		// a binary file is disassembled; the source (and its file) stays as it is
@@ -558,6 +586,7 @@ bool CMainFrame::OpenFile(PCWSTR file) {
 			return false;
 		}
 		m_AsmBytes = std::move(bytes);
+		m_CodeSize = 0;
 		m_AssembledSource.clear();
 		m_AddressToSourceLine.clear();
 		Disassemble(m_AsmBytes.data(), m_AsmBytes.size());
@@ -783,7 +812,7 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	CreateToolBar();
 	CreateSimpleStatusBar();
 	m_StatusBar.Attach(m_hWndStatusBar);
-	int parts[] = { 200, 500, -1 };
+	int parts[] = { 300, 560, -1 };
 	m_StatusBar.SetParts(_countof(parts), parts);
 	m_StatusBar.SetText(1, L"Idle");
 	if (!settings.ViewStatusBar())
@@ -923,6 +952,7 @@ bool CMainFrame::NewSource(const char* text) {
 	m_Disassembly.ClearAll();
 	m_Disassembly.SetReadOnly(true);
 	m_AsmBytes.clear();
+	m_CodeSize = 0;
 	m_Instructions.clear();
 	m_AddressToSourceLine.clear();
 	m_AssembledSource.clear();

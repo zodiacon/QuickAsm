@@ -32,8 +32,9 @@ PCWSTR Helpers::RegisterTypeToString(RegisterType type) {
         { RegisterType::General, L"General" },
         { RegisterType::Segment, L"Segment" },
         { RegisterType::Special, L"Special" },
-        { RegisterType::FloatingPoint, L"Float" },
+        { RegisterType::FloatingPoint, L"x87" },
         { RegisterType::SSE, L"SSE" },
+        { RegisterType::AVX, L"AVX" },
         { RegisterType::Control, L"Control" },
         { RegisterType::Descriptor, L"Descriptor" },
     };

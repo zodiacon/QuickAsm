@@ -41,6 +41,7 @@ public:
 		NOTIFY_HANDLER(IDC_REGISTERS, NM_CUSTOMDRAW, OnListCustomDraw)
 		NOTIFY_HANDLER(IDC_REGISTERS, LVN_BEGINSCROLL, OnListBeginScroll)
 		COMMAND_RANGE_HANDLER(ID_REGS_8BIT, ID_REGS_64BIT, OnFilter)
+		COMMAND_RANGE_HANDLER(ID_REGS_X87, ID_REGS_AVX, OnFilter)
 		COMMAND_ID_HANDLER(ID_REGS_EDIT, OnEdit)
 		CHAIN_MSG_MAP(CVirtualListView<CRegistersView>)
 	END_MSG_MAP()
@@ -49,6 +50,9 @@ private:
 	RegisterInfo const& GetRegister(int row) const;
 	CString GetValueText(RegisterInfo const& ri) const;
 	CString GetDetailsText(RegisterInfo const& ri) const;
+	// the x87, SSE and AVX registers (wider than 64 bits, or not integers)
+	static bool IsVectorOrFloat(RegisterInfo const& ri);
+	bool IsShown(RegisterInfo const& ri) const;
 	// in place, in the value's cell
 	bool EditValue(int row);
 	// a value typed for a register: decimal (may be negative), hex (0x1F or 1Fh); false if it isn't one or doesn't fit
@@ -71,8 +75,9 @@ private:
 	CListViewCtrl m_List;
 	CInPlaceEdit m_Edit;
 	std::vector<int> m_Items;	// indices into AllRegisters
-	// the general register sizes shown: bit 0 for 8 bit, 1 for 16, 2 for 32, 3 for 64 (tested against RegisterInfo::Size >> 3);
-	// the mode's size when the mode changes (the other registers are always shown)
+	// the general register sizes shown: bit 0 for 8 bit, 1 for 16, 2 for 32, 3 for 64 (tested against RegisterInfo::Size >> 3),
+	// the mode's size when the mode changes; then the x87, SSE and AVX registers (the others are always shown)
+	enum : DWORD { FilterX87 = 1 << 4, FilterSSE = 1 << 5, FilterAVX = 1 << 6 };
 	DWORD m_Filter{ 1 << 2 };
 	DWORD m_FilterMode{ 0 };	// the mode the filter was set for
 	bool m_Live{ true };

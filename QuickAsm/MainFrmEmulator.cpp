@@ -39,7 +39,7 @@ void CMainFrame::InitEmulator(uint8_t const* data, size_t size, bool keepBreakpo
 			case AsmMode::Bits64: m_Emulator.WriteReg(x86Register::RSP, top); break;
 		}
 		m_CodeHook = m_Emulator.HookCode(HookType::CODE, [this](auto address, auto) { OnCodeHook(address); },
-			m_Instructions[0].Address, m_Instructions[0].Address + size - 1);
+			m_Instructions[0].Address, m_Instructions[0].Address + std::min(GetCodeSize(), size) - 1);
 	}
 	m_RegistersView.SetLive(true);
 	m_RegistersView.Refresh();
@@ -128,7 +128,8 @@ void CMainFrame::Run(bool stepInto, uint64_t stopAt, bool stepOut) {
 		m_EmulatorWork.reset(::CreateThreadpoolWork([](auto, auto context, auto) {
 			auto frame = static_cast<CMainFrame*>(context);
 			auto start = frame->m_Instructions[0].Address;
-			auto ok = frame->m_Emulator.Start(start, start + frame->m_AsmBytes.size());
+			// (to the end of the code: data may follow it)
+			auto ok = frame->m_Emulator.Start(start, start + frame->GetCodeSize());
 			frame->PostMessage(WM_EMULATOR_DONE, ok ? UC_ERR_OK : frame->m_Emulator.LastError());
 			}, this, nullptr));
 	}

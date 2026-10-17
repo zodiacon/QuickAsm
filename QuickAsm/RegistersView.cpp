@@ -6,6 +6,8 @@
 #include <SortHelper.h>
 #include <WTLHelper.h>
 #include <charconv>
+#include <cmath>
+#include <limits>
 
 CRegistersView::CRegistersView(UnicornEngine& emulator) : m_Emulator(emulator) {
 }
@@ -17,17 +19,14 @@ void CRegistersView::Refresh() {
 	if (m_Emulator.IsOpen()) {
 		auto mode = (DWORD)m_Emulator.GetMode();
 		if (mode != m_FilterMode) {
-			// the mode's general registers (CS_MODE_16/32/64 are 2, 4 and 8: the sizes in bytes)
-			m_Filter = mode;
+			// the mode's general registers (CS_MODE_16/32/64 are 2, 4 and 8: the sizes in bytes); the x87/SSE/AVX choice stays
+			m_Filter = mode | (m_Filter & (FilterX87 | FilterSSE | FilterAVX));
 			m_FilterMode = mode;
 			UpdateFilterButtons();
 		}
-		for (int i = 0; i < (int)AllRegisters.size(); i++) {
-			auto& ri = AllRegisters[i];
-			bool general = (ri.Category & RegisterType::General) != RegisterType::None;
-			if (((DWORD)ri.Category & mode) && (!general || (m_Filter & (ri.Size >> 3))))
+		for (int i = 0; i < (int)AllRegisters.size(); i++)
+			if (((DWORD)AllRegisters[i].Category & mode) && IsShown(AllRegisters[i]))
 				m_Items.push_back(i);
-		}
 	}
 	Sort(m_List);
 	m_List.SetItemCountEx((int)m_Items.size(), LVSICF_NOSCROLL);
@@ -90,8 +89,58 @@ CString CRegistersView::GetColumnText(HWND, int row, int col) const {
 	return text;
 }
 
+bool CRegistersView::IsVectorOrFloat(RegisterInfo const& ri) {
+	return (ri.Category & (RegisterType::FloatingPoint | RegisterType::SSE | RegisterType::AVX)) != RegisterType::None;
+}
+
+bool CRegistersView::IsShown(RegisterInfo const& ri) const {
+	if ((ri.Category & RegisterType::AVX) != RegisterType::None)
+		return m_Filter & FilterAVX;
+	if ((ri.Category & RegisterType::SSE) != RegisterType::None)
+		return m_Filter & FilterSSE;
+	if ((ri.Category & RegisterType::FloatingPoint) != RegisterType::None)
+		return m_Filter & FilterX87;
+	if ((ri.Category & RegisterType::General) != RegisterType::None)
+		return m_Filter & (ri.Size >> 3);
+	return true;
+}
+
+namespace {
+	// an x87 register: a 64-bit mantissa (with its integer bit) and a sign and 15-bit exponent
+	struct Float80 {
+		uint64_t Mantissa;
+		uint16_t SignExponent;
+	};
+
+	double ToDouble(Float80 const& value) {
+		auto exponent = value.SignExponent & 0x7FFF;
+		double result;
+		if (exponent == 0x7FFF)
+			result = (value.Mantissa << 1) ? std::numeric_limits<double>::quiet_NaN() : std::numeric_limits<double>::infinity();
+		else
+			result = std::ldexp((double)value.Mantissa, exponent - 16383 - 63);
+		return (value.SignExponent & 0x8000) ? -result : result;
+	}
+}
+
 CString CRegistersView::GetValueText(RegisterInfo const& ri) const {
 	CString text;
+	if (ri.Size > 64 && IsVectorOrFloat(ri)) {
+		// (as wide as the widest, YMM)
+		uint64_t value[4]{};
+		if (!m_Emulator.ReadReg(ri.Id, value))
+			return L"(not available)";
+		if (ri.Size == 80) {
+			auto& f = *(Float80*)value;
+			text.Format(L"0x%04X%016llX", f.SignExponent, f.Mantissa);
+			return text;
+		}
+		// the qwords, the most significant first
+		text = L"0x";
+		for (int i = ri.Size / 64 - 1; i >= 0; i--)
+			text.AppendFormat(L"%016llX", value[i]);
+		return text;
+	}
 	if ((ri.Category & RegisterType::Descriptor) == RegisterType::None)
 		text.Format(L"0x%llX", m_Emulator.ReadReg<size_t>(ri.Id));
 	else {
@@ -104,6 +153,32 @@ CString CRegistersView::GetValueText(RegisterInfo const& ri) const {
 CString CRegistersView::GetDetailsText(RegisterInfo const& ri) const {
 	if ((ri.Category & RegisterType::Descriptor) != RegisterType::None)
 		return L"";
+	if (IsVectorOrFloat(ri) && ri.Size > 64) {
+		uint64_t value[4]{};
+		if (!m_Emulator.ReadReg(ri.Id, value))
+			return L"";
+		CString text;
+		if (ri.Size == 80) {
+			text.Format(L"%.17g", ToDouble(*(Float80*)value));
+			return text;
+		}
+		// as floats, and as doubles
+		auto floats = (float const*)value;
+		auto doubles = (double const*)value;
+		text = L"float:";
+		for (int i = ri.Size / 32 - 1; i >= 0; i--)
+			text.AppendFormat(L" %g", floats[i]);
+		text += L"  double:";
+		for (int i = ri.Size / 64 - 1; i >= 0; i--)
+			text.AppendFormat(L" %g", doubles[i]);
+		return text;
+	}
+	if (ri.Id == x86Register::FPSW) {
+		auto sw = m_Emulator.ReadReg<uint16_t>(ri.Id);
+		CString text;
+		text.Format(L"TOP=%d C3=%d C2=%d C1=%d C0=%d", (sw >> 11) & 7, (sw >> 14) & 1, (sw >> 10) & 1, (sw >> 9) & 1, (sw >> 8) & 1);
+		return text;
+	}
 
 	auto value = m_Emulator.ReadReg<size_t>(ri.Id);
 	if (ri.Id == x86Register::EFLAGS)
@@ -153,7 +228,7 @@ bool CRegistersView::EditValue(int row) {
 		::MessageBeep(MB_ICONWARNING);
 		return false;
 	}
-	if ((ri.Category & (RegisterType::General | RegisterType::Segment)) == RegisterType::None) {
+	if ((ri.Category & (RegisterType::General | RegisterType::Segment)) == RegisterType::None || IsVectorOrFloat(ri)) {
 		::MessageBeep(MB_ICONWARNING);
 		return false;
 	}
@@ -215,6 +290,10 @@ LRESULT CRegistersView::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 		{ ID_REGS_32BIT, IDI_32BIT, BTNS_CHECK },
 		{ ID_REGS_64BIT, IDI_64BIT, BTNS_CHECK },
 		{ 0 },
+		{ ID_REGS_X87, 0, BTNS_CHECK | BTNS_AUTOSIZE, L"x87" },
+		{ ID_REGS_SSE, 0, BTNS_CHECK | BTNS_AUTOSIZE, L"SSE" },
+		{ ID_REGS_AVX, 0, BTNS_CHECK | BTNS_AUTOSIZE, L"AVX" },
+		{ 0 },
 		{ ID_REGS_EDIT, IDI_EDIT },
 	};
 	m_ToolBar.Attach(ToolbarHelper::CreateAndInitToolBar(m_hWnd, buttons, _countof(buttons), 16));
@@ -225,7 +304,8 @@ LRESULT CRegistersView::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 	m_List.SetExtendedListViewStyle(LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER | LVS_EX_INFOTIP);
 	m_List.InsertColumn(0, L"Name", LVCFMT_LEFT, 70);
 	m_List.InsertColumn(1, L"Size", LVCFMT_RIGHT, 60);
-	m_List.InsertColumn(2, L"Value", LVCFMT_RIGHT, 160);
+	// (wide enough for 128 bits; wider values show in full in the tooltip)
+	m_List.InsertColumn(2, L"Value", LVCFMT_RIGHT, 270);
 	m_List.InsertColumn(3, L"Type", LVCFMT_LEFT, 80);
 	m_List.InsertColumn(4, L"Details", LVCFMT_LEFT, 300);
 	return 0;
@@ -285,10 +365,12 @@ LRESULT CRegistersView::OnListBeginScroll(int, LPNMHDR, BOOL&) {
 void CRegistersView::UpdateFilterButtons() {
 	for (int i = 0; i < 4; i++)
 		m_ToolBar.CheckButton(ID_REGS_8BIT + i, (m_Filter & (1 << i)) != 0);
+	for (int i = 0; i < 3; i++)
+		m_ToolBar.CheckButton(ID_REGS_X87 + i, (m_Filter & (FilterX87 << i)) != 0);
 }
 
 LRESULT CRegistersView::OnFilter(WORD, WORD wID, HWND, BOOL&) {
-	auto bit = 1 << (wID - ID_REGS_8BIT);
+	auto bit = wID >= ID_REGS_X87 ? FilterX87 << (wID - ID_REGS_X87) : 1 << (wID - ID_REGS_8BIT);
 	if (m_ToolBar.IsButtonChecked(wID))
 		m_Filter |= bit;
 	else

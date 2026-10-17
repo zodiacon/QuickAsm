@@ -8,6 +8,8 @@ struct AssemblerResults {
 	std::string Output;		// the errors; the warnings if it succeeded
 	// the source line (0 based) of the code at each offset from its start, when the assembler tells
 	std::vector<std::pair<uint32_t, int>> SourceLines;
+	// the code's bytes at the start of Bytes, before data (other sections); 0: all of them
+	size_t CodeSize{ 0 };
 	size_t Instructions;
 	int Error{ 0 };
 };

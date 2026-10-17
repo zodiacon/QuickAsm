@@ -190,6 +190,7 @@
     <ClCompile Include="RegistersView.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="MainFrmEmulator.cpp" />
+    <ClCompile Include="MainFrmSession.cpp" />
     <ClCompile Include="QuickAsm.cpp" />
     <ClCompile Include="NasmAssembler.cpp" />
     <ClCompile Include="RecentFilesManager.cpp" />

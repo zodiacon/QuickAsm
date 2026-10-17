@@ -29,7 +29,7 @@ public:
 	CMainFrame();
 	~CMainFrame();
 
-	// an assembly file goes to the source; any other file is disassembled
+	// an assembly file goes to the source, a session sets everything up; any other file is disassembled
 	bool OpenFile(PCWSTR path);
 
 	BOOL PreTranslateMessage(MSG* pMsg) override;
@@ -76,6 +76,8 @@ public:
 		COMMAND_ID_HANDLER(ID_FILE_OPEN, OnFileOpen)
 		COMMAND_ID_HANDLER(ID_FILE_SAVE, OnFileSave)
 		COMMAND_ID_HANDLER(ID_FILE_SAVE_AS, OnFileSaveAs)
+		COMMAND_ID_HANDLER(ID_FILE_OPENSESSION, OnFileOpenSession)
+		COMMAND_ID_HANDLER(ID_FILE_SAVESESSION, OnFileSaveSession)
 		COMMAND_ID_HANDLER(ID_FILE_CLOSE, OnFileClose)
 		COMMAND_RANGE_HANDLER(ATL_IDS_MRU_FILE, ATL_IDS_MRU_FILE + 14, OnRecentFile)
 		COMMAND_ID_HANDLER(ID_EDIT_UNDO, OnEditCommand)
@@ -167,6 +169,8 @@ private:
 	void DisassembleText(uint8_t const* data, size_t size);
 	// with the case option
 	std::string FormatInstruction(Instruction const& insn) const;
+	// the code's part of the bytes (the rest is data, not run or disassembled)
+	size_t GetCodeSize() const;
 	void CreateBottomPane();
 	void CreateToolBar();
 	// the address in the address box (false if it isn't one)
@@ -247,6 +251,15 @@ private:
 	LRESULT OnOptionsFont(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnDisassemblyOption(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnOptionsMemory(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+
+	// sessions (MainFrmSession.cpp)
+	static constexpr PCWSTR SessionExtension = L".qasession";
+	static bool IsSessionFile(PCWSTR path);
+	bool SaveSession(PCWSTR path);
+	// the source, its setup (assembler, mode, address, memory) and its breakpoints; the code is assembled
+	bool OpenSession(PCWSTR path);
+	LRESULT OnFileOpenSession(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
+	LRESULT OnFileSaveSession(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	// the memory from the settings (the defaults if they aren't valid)
 	void SetupMemory();
 	uint64_t MemoryEnd() const;
@@ -289,12 +302,14 @@ private:
 	CEdit m_AddressEdit;
 	CStatic m_AssemblerLabel, m_AddressLabel;
 	CString m_FileName;
+	CString m_SessionFile;	// the last opened or saved
 	RecentFilesManager m_RecentFiles;
 	std::vector<std::unique_ptr<AssemblerBase>> m_Assemblers;
 	int m_AssemblerIndex{ 1 };
 	AsmMode m_AsmMode{ AsmMode::Bits32 };
 	uint64_t m_Address{ 0x1000 };
 	std::vector<uint8_t> m_AsmBytes;
+	size_t m_CodeSize{ 0 };		// the code at the start of m_AsmBytes, before data (other sections); 0: all
 	std::vector<Instruction> m_Instructions;
 	std::unordered_map<uint64_t, int> m_AddressToLine;
 	std::unordered_map<uint64_t, int> m_AddressToSourceLine;

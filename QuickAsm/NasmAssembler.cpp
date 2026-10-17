@@ -2,6 +2,7 @@
 #include "NasmAssembler.h"
 #include "Helpers.h"
 #include <fstream>
+#include <sstream>
 
 NasmAssembler::NasmAssembler() {
 	SetName(L"NASM");
@@ -44,8 +45,16 @@ AssemblerResults NasmAssembler::AssembleFile(std::wstring const& file) {
 			::DeleteFile(path.c_str());
 		});
 
+	// the sections' places (where the code ends and data starts); nasm takes the map file's name as is, quotes included:
+	// it runs in the map file's folder, which is named without its path
+	auto mapFile = Helpers::GetTempFilePath(L"map");
+	tempFiles.push_back(mapFile);
+	auto tempDir = mapFile.substr(0, mapFile.rfind(L'\\'));
+	prefix += "[map sections " + std::string(CW2A(mapFile.substr(tempDir.size() + 1).c_str())) + "]\n";
+	extraLines++;
+
 	auto srcFile = file;
-	if (!prefix.empty()) {
+	{
 		auto source = Helpers::ReadFileContents(file.c_str());
 		auto tempSrc = Helpers::GetTempFilePath(L"src");
 		tempFiles.push_back(tempSrc);
@@ -68,7 +77,7 @@ AssemblerResults NasmAssembler::AssembleFile(std::wstring const& file) {
 	PROCESS_INFORMATION pi{};
 	STARTUPINFO si{ sizeof(si) };
 	if (!::CreateProcess(nullptr, fullcmdline.data(), nullptr, nullptr, FALSE,
-		CREATE_NO_WINDOW, nullptr, m_NasmDir.c_str(), &si, &pi)) {
+		CREATE_NO_WINDOW, nullptr, tempDir.c_str(), &si, &pi)) {
 		results.Error = ::GetLastError();
 		results.Output = "Failed to run nasm.exe";
 		return results;
@@ -105,7 +114,39 @@ AssemblerResults NasmAssembler::AssembleFile(std::wstring const& file) {
 	}
 	results.Bytes = Helpers::ReadFileContents(objOutput.c_str());
 	results.SourceLines = ParseListing(listing, extraLines);
+	results.CodeSize = GetCodeSize(mapFile, address ? *address : 0);
 	return results;
+}
+
+size_t NasmAssembler::GetCodeSize(std::wstring const& mapFile, int64_t origin) {
+	//
+	// the summary's lines: vstart, start, stop, length (hex), class and name of each section
+	//
+	std::ifstream stm(mapFile);
+	bool summary = false;
+	int64_t codeStart = -1, codeLength = 0;
+	bool others = false;
+	for (std::string text; std::getline(stm, text); ) {
+		if (text.starts_with("-- ")) {
+			summary = text.find("Sections (summary)") != std::string::npos;
+			continue;
+		}
+		if (!summary)
+			continue;
+		std::istringstream line(text);
+		std::string vstart, start, stop, length, cls, name;
+		if (!(line >> vstart >> start >> stop >> length >> cls >> name) || cls == "Class")
+			continue;
+		if (name == ".text") {
+			codeStart = std::stoll(start, nullptr, 16);
+			codeLength = std::stoll(length, nullptr, 16);
+		}
+		else if (cls == "progbits") {
+			others = true;
+		}
+	}
+	// (the code first, where the output starts)
+	return others && codeStart == origin ? (size_t)codeLength : 0;
 }
 
 std::vector<std::pair<uint32_t, int>> NasmAssembler::ParseListing(std::wstring const& path, int extraLines) {
@@ -118,6 +159,8 @@ std::vector<std::pair<uint32_t, int>> NasmAssembler::ParseListing(std::wstring c
 	std::ifstream stm(path);
 	int usingLine = 0;
 	uint32_t lastOffset = UINT32_MAX;
+	// the offsets are of the section they're in: only the code's (.text, the first) are the code's
+	bool code = true;
 	for (std::string text; std::getline(stm, text); ) {
 		if (text.size() < 15 || !std::isdigit((unsigned char)text[5]))
 			continue;
@@ -125,6 +168,25 @@ std::vector<std::pair<uint32_t, int>> NasmAssembler::ParseListing(std::wstring c
 		bool expansion = text.size() > 36 && text[36] == '<';
 		if (!expansion)
 			usingLine = number;
+
+		// the source (from column 40): "section .data", "[section .text]"...
+		if (text.size() > 40) {
+			std::istringstream source(text.substr(40));
+			std::string directive, name;
+			source >> directive >> name;
+			for (auto& ch : directive)
+				ch = (char)std::tolower((unsigned char)ch);
+			if (directive.starts_with('['))
+				directive.erase(0, 1);
+			if (directive == "section" || directive == "segment") {
+				if (!name.empty() && name.back() == ']')
+					name.pop_back();
+				code = name == ".text";
+				continue;
+			}
+		}
+		if (!code)
+			continue;
 
 		auto offset = text.substr(7, 8);
 		if (text[6] != ' ' || !std::ranges::all_of(offset, [](char ch) { return std::isxdigit((unsigned char)ch) != 0; }))
