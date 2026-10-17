@@ -80,7 +80,9 @@ void CMainFrame::InitMenu(HMENU hMenu) {
 
 void CMainFrame::ApplyTheme() {
 	auto& settings = AppSettings::Get();
-	WTLHelper::SwitchToMode(settings.EffectiveTheme(), m_hWnd);
+	// (already in that mode, as at startup: the windows are themed and redrawn all the same)
+	if (!WTLHelper::SwitchToMode(settings.EffectiveTheme(), m_hWnd))
+		WTLHelper::ApplyMode(m_hWnd);
 	// the menu item bitmaps are drawn on the menu's background
 	InitMenu(GetMenu());
 	DrawMenuBar();
@@ -310,6 +312,8 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&) {
 
 	UpdateUI();
 	m_AsmSource.SetFocus();
+	// the dark mode hook themes the frame after WM_CREATE: the theme goes on everything once it has
+	PostMessage(WM_UPDATE_DARKMODE);
 	return 0;
 }
 
@@ -338,6 +342,11 @@ LRESULT CMainFrame::OnSettingChange(UINT, WPARAM, LPARAM lParam, BOOL& bHandled)
 	if (lParam && ::wcscmp((PCWSTR)lParam, L"ImmersiveColorSet") == 0 && AppSettings::Get().ThemeKind() == DarkModeKind::System)
 		ApplyTheme();
 	bHandled = FALSE;
+	return 0;
+}
+
+LRESULT CMainFrame::OnUpdateDarkMode(UINT, WPARAM, LPARAM, BOOL&) {
+	ApplyTheme();
 	return 0;
 }
 
