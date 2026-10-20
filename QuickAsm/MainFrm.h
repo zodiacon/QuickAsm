@@ -327,6 +327,8 @@ private:
 	std::atomic<uint64_t> m_StopAt{ 0 };	// a one-time stop (step over, run to cursor)
 	std::atomic<bool> m_StepOut{ false };
 	std::atomic<bool> m_BreakRequested{ false };	// pause at the next instruction (Break)
+	// an enabled breakpoint exists (else the code hook has nothing to look up); set with the markers (BreakpointsChanged)
+	std::atomic<bool> m_AnyBreakpoints{ false };
 	uint64_t m_StepOutSP{ 0 };		// the stack pointer when stepping out started
 	bool m_LastWasReturn{ false };	// (the emulator thread's: the previous instruction was a return)
 	std::atomic<bool> m_StopRequested{ false };

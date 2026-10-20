@@ -5,7 +5,7 @@ struct Instruction {
 	std::vector<uint8_t> Bytes;
 	std::string Mnemonic;
 	std::string Operands;
-	unsigned Id;
+	unsigned Id;		// 0: not an instruction (a byte shown as data)
 	std::unique_ptr<cs_detail> Details;
 };
 

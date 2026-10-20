@@ -15,6 +15,10 @@ bool CapstoneEngine::Open(cs_mode mode) {
 	if (m_CS)
 		cs_close(&m_CS);
 	m_CS = h;
+	// a byte that isn't an instruction is shown as data (db), and the disassembly goes on after it
+	cs_option(m_CS, CS_OPT_SKIPDATA, CS_OPT_ON);
+	cs_opt_skipdata skipdata{ "db" };
+	cs_option(m_CS, CS_OPT_SKIPDATA_SETUP, (size_t)&skipdata);
 	return true;
 }
 

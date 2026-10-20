@@ -138,6 +138,11 @@ void CMainFrame::Run(bool stepInto, uint64_t stopAt, bool stepOut) {
 
 // called on the emulator thread before each instruction runs
 void CMainFrame::OnCodeHook(uint64_t address) {
+	// running freely, with no (enabled) breakpoints: nothing to check
+	// (m_LastWasReturn isn't needed then: a step out starts at a stop, which this hook made with all the checks)
+	if (!m_StepInto && !m_StopAt && !m_StepOut && !m_BreakRequested && !m_AnyBreakpoints)
+		return;
+
 	bool stop = m_StepInto || m_StopAt == address || m_BreakRequested.exchange(false);
 	// step out: the first instruction after a return that left the function (the stack is above where it was)
 	if (!stop && m_StepOut && m_LastWasReturn && ReadStackPointer() > m_StepOutSP)
@@ -417,11 +422,13 @@ void CMainFrame::ToggleBreakpoint(int line) {
 void CMainFrame::BreakpointsChanged() {
 	m_Disassembly.DeleteBreakpointMarkers();
 	m_AsmSource.DeleteBreakpointMarkers();
+	bool any = false;
 	// (in the source too, while its lines are the code's)
 	bool source = !m_AddressToSourceLine.empty() && m_AsmSource.GetAllText() == m_AssembledSource;
 	{
 		std::lock_guard lock(m_BreakpointsLock);
 		for (auto& [address, bp] : m_Breakpoints) {
+			any |= bp.Enabled;
 			bool conditional = bp.Expr || bp.HitTarget > 1;
 			if (auto line = LineFromAddress(address); line >= 0)
 				m_Disassembly.SetBreakpointMarker(line, true, bp.Enabled, conditional);
@@ -429,6 +436,7 @@ void CMainFrame::BreakpointsChanged() {
 				m_AsmSource.SetBreakpointMarker(it->second, true, bp.Enabled, conditional);
 		}
 	}
+	m_AnyBreakpoints = any;
 	m_BreakpointsView.Refresh();
 }
 

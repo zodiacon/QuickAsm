@@ -83,7 +83,15 @@ AssemblerResults NasmAssembler::AssembleFile(std::wstring const& file) {
 		return results;
 	}
 	wil::unique_handle hProcess(pi.hProcess), hThread(pi.hThread);
-	::WaitForSingleObject(hProcess.get(), INFINITE);
+	// (a source can keep it busy for a very long time: %rep, times...)
+	const DWORD timeout = 15000;
+	if (::WaitForSingleObject(hProcess.get(), timeout) == WAIT_TIMEOUT) {
+		::TerminateProcess(hProcess.get(), 1);
+		::WaitForSingleObject(hProcess.get(), 5000);
+		results.Error = ERROR_TIMEOUT;
+		results.Output = "nasm.exe didn't finish in " + std::to_string(timeout / 1000) + " seconds, and was stopped";
+		return results;
+	}
 	DWORD exitCode = 1;
 	::GetExitCodeProcess(hProcess.get(), &exitCode);
 
